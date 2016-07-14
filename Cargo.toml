@@ -1,0 +1,14 @@
+[package]
+name = "snap"
+version = "0.1.0"  #:version
+authors = ["Andrew Gallant <jamslam@gmail.com>"]
+description = """
+A pure Rust implementation of the Snappy compression algorithm. Includes
+streaming compression and decompression.
+"""
+documentation = "http://burntsushi.net/rustdoc/snap/"
+homepage = "https://github.com/BurntSushi/snap"
+repository = "https://github.com/BurntSushi/snap"
+readme = "README.md"
+keywords = ["snappy", "compress", "compression", "decompress", "decompression"]
+license = "Unlicense/MIT"
