@@ -12,3 +12,6 @@ repository = "https://github.com/BurntSushi/snap"
 readme = "README.md"
 keywords = ["snappy", "compress", "compression", "decompress", "decompression"]
 license = "Unlicense/MIT"
+
+[dependencies]
+byteorder = "0.5.3"
