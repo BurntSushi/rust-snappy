@@ -18,6 +18,7 @@ const MAX_INPUT_SIZE: u64 = ::std::u32::MAX as u64;
 
 mod compress;
 mod decompress;
+mod tag;
 
 pub type Result<T> = result::Result<T, Error>;
 

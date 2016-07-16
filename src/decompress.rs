@@ -2,6 +2,7 @@ use std::ptr;
 
 use byteorder::{ByteOrder, LittleEndian as LE};
 
+use tag::TAG_LOOKUP_TABLE;
 use {
     MAX_INPUT_SIZE,
     Error, Result, Tag,
@@ -25,106 +26,102 @@ pub fn decompress(input: &[u8], output: &mut [u8]) -> Result<usize> {
     Ok(output.len())
 }
 
+const WORD_MASK: [usize; 5] = [0, 0xFF, 0xFFFF, 0xFFFFFF, 0xFFFFFFFF];
+
 fn decompress_block(mut input: &[u8], output: &mut [u8]) -> Result<()> {
     let (mut d, mut s, mut offset, mut len) = (0, 0, 0, 0);
     while s < input.len() {
-        match Tag::from(input[s] & 0b000000_11) {
-            Tag::Literal => {
-                let mut lit_len = (input[s] >> 2) as usize;
-                if lit_len < 60 {
-                    s += 1;
-                } else if lit_len == 60 {
-                    s = try!(inc(s, 2, input.len()));
-                    lit_len = input[s-1] as usize;
-                } else if lit_len == 61 {
-                    s = try!(inc(s, 3, input.len()));
-                    lit_len = LE::read_u16(&input[s-2..]) as usize;
-                } else if lit_len == 62 {
-                    s = try!(inc(s, 4, input.len()));
-                    lit_len = LE::read_uint(&input[s-3..], 3) as usize;
-                } else if lit_len == 63 {
-                    s = try!(inc(s, 5, input.len()));
-                    lit_len = LE::read_u32(&input[s-4..]) as usize;
-                } else {
-                    unreachable!();
+        let byte = input[s];
+        s += 1;
+        let entry = TAG_LOOKUP_TABLE[byte as usize] as usize;
+        if byte & 0b000000_11 == 0 {
+            let mut lit_len = (byte >> 2) as usize + 1;
+            if lit_len <= 16 && d + 16 <= output.len() && s + 16 <= input.len() {
+                unsafe {
+                    ptr::copy_nonoverlapping(
+                        input.as_ptr().offset(s as isize),
+                        output.as_mut_ptr().offset(d as isize),
+                        16);
                 }
-                len = try!(inc(lit_len, 1, ::std::usize::MAX));
-                if len > 16 || (output.len() - d) < 16 || (input.len() - s) < 16 {
-                    if len > (output.len() - d) || len > (input.len() - s) {
-                        return Err(Error::Corrupt);
-                    }
-                    output[d..d + len].copy_from_slice(&input[s..s + len]);
-                } else {
-                    unsafe {
-                        u64_copy(input, s, output, d);
-                        u64_copy(input, s + 8, output, d + 8);
-                    }
-                }
-                d += len;
-                s += len;
+                d += lit_len;
+                s += lit_len;
                 continue;
             }
-            Tag::Copy1 => unsafe {
-                // s = try!(inc(s, 2, input.len()));
-                s += 2;
-                let tag = *input.get_unchecked(s - 2) as usize;
-                len = 4 + ((tag >> 2) & 0b111);
-                offset =
-                    ((tag & 0b111_00000) << 3)
-                    | (*input.get_unchecked(s - 1) as usize);
-            },
-            Tag::Copy2 => unsafe {
-                // s = try!(inc(s, 3, input.len()));
-                s += 3;
-                len = 1 + (*input.get_unchecked(s - 3) >> 2) as usize;
-                offset = LE::read_u16(&input[s - 2..]) as usize;
-            },
-            Tag::Copy3 => unsafe {
-                // s = try!(inc(s, 5, input.len()));
-                s += 5;
-                len = 1 + (*input.get_unchecked(s - 5) >> 2) as usize;
-                offset = LE::read_u32(&input[s - 4..]) as usize;
-            },
+            if lit_len >= 61 {
+                if (s as u64) + 4 > input.len() as u64 {
+                    return Err(Error::Corrupt);
+                }
+                let big_len = LE::read_u32(&input[s..]) as usize;
+                s += lit_len - 60;
+                lit_len = (big_len & WORD_MASK[lit_len - 60]) + 1;
+            }
+            if d + lit_len > output.len() || s + lit_len > input.len() {
+                return Err(Error::Corrupt);
+            }
+            output[d..d + lit_len].copy_from_slice(&input[s..s + lit_len]);
+            s += lit_len;
+            d += lit_len;
+            continue;
         }
-        if d < offset {
+        let extra = entry >> 11;
+        let trailer =
+            if s + 4 <= input.len() {
+                LE::read_u32(&input[s..]) as usize & WORD_MASK[extra]
+            } else if extra == 1 {
+                input[s] as usize
+            } else if extra == 2 {
+                LE::read_u16(&input[s..]) as usize
+            } else {
+                LE::read_u32(&input[s..]) as usize
+            };
+
+        len = entry & 0xFF;
+        s += extra;
+        offset = (entry & 0x700) + trailer;
+
+        if d <= offset.wrapping_sub(1) {
             return Err(Error::Corrupt);
         }
         let end = d + len;
-        if d + len + 10 > output.len() {
-            if d + len > output.len() {
-                return Err(Error::Corrupt);
-            }
-            while d != end {
-                output[d] = output[d - offset];
-                d += 1;
+        if len <= 16 && offset >= 8 && d + 16 <= output.len() {
+            unsafe {
+                let mut dst = output.as_mut_ptr().offset(d as isize);
+                let mut src = dst.offset(-(offset as isize));
+                ptr::copy_nonoverlapping(src, dst, 8);
+                ptr::copy_nonoverlapping(src.offset(8), dst.offset(8), 8);
             }
         } else {
-            unsafe {
-                let mut dst: *mut u8 = output[d..].as_mut_ptr();
-                let mut src = dst.offset(-(offset as isize));
-                if len <= 16 && offset >= 8 && d + len + 16 <= output.len() {
-                    u64_copy_raw(src, 0, dst, 0);
-                    u64_copy_raw(src, 8, dst, 8);
-                } else {
+            if end + 10 <= output.len() {
+                unsafe {
+                    let mut dst = output.as_mut_ptr().offset(d as isize);
+                    let mut src = dst.offset(-(offset as isize));
                     loop {
                         let diff = (dst as isize) - (src as isize);
                         if diff >= 8 {
                             break;
                         }
-                        u64_copy_raw(src, 0, dst, 0);
+                        ptr::copy(src, dst, 8);
                         d += diff as usize;
                         dst = dst.offset(diff);
                     }
                     while d < end {
-                        u64_copy_raw(src, 0, dst, 0);
+                        ptr::copy_nonoverlapping(src, dst, 8);
                         src = src.offset(8);
                         dst = dst.offset(8);
                         d += 8;
                     }
                 }
+            } else {
+                if end > output.len() {
+                    return Err(Error::Corrupt);
+                }
+                while d != end {
+                    output[d] = output[d - offset];
+                    d += 1;
+                }
             }
-            d = end;
         }
+        d = end;
     }
     if d != output.len() {
         return Err(Error::Corrupt);
@@ -137,42 +134,6 @@ pub fn decompress_len(input: &[u8]) -> Result<usize> {
         return Ok(0);
     }
     Ok(try!(Header::read(input)).decompress_len)
-}
-
-#[inline]
-unsafe fn u64_copy(src: &[u8], srci: usize, dst: &mut [u8], dsti: usize) {
-    u64_store_le(u64_load_le(src, srci), dst, dsti);
-}
-
-#[inline]
-unsafe fn u64_copy_raw(src: *const u8, srci: usize, dst: *mut u8, dsti: usize) {
-    u64_store_le_raw(u64_load_le_raw(src, srci), dst, dsti);
-}
-
-#[inline]
-unsafe fn u64_load_le(buf: &[u8], i: usize) -> u64 {
-    debug_assert!(i + 8 <= buf.len());
-    u64_load_le_raw(buf.as_ptr(), i)
-}
-
-#[inline]
-unsafe fn u64_load_le_raw(buf: *const u8, i: usize) -> u64 {
-    let mut n: u64 = 0;
-    ptr::copy_nonoverlapping(
-        buf.offset(i as isize), &mut n as *mut u64 as *mut u8, 8);
-    n.to_le()
-}
-
-#[inline]
-unsafe fn u64_store_le(n: u64, buf: &mut [u8], i: usize) {
-    debug_assert!(i + 8 <= buf.len());
-    u64_store_le_raw(n, buf.as_mut_ptr(), i);
-}
-
-#[inline]
-unsafe fn u64_store_le_raw(n: u64, buf: *mut u8, i: usize) {
-    ptr::copy_nonoverlapping(
-        &n.to_le() as *const u64 as *mut u8, buf.offset(i as isize), 8);
 }
 
 #[inline]

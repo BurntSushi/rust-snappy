@@ -20,7 +20,6 @@ bench = false
 byteorder = "0.5.3"
 
 [dev-dependencies]
-lazy_static = "0.2"
 quickcheck = "0.2"
 rand = "0.3"
 

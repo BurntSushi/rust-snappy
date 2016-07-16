@@ -1,0 +1,34 @@
+[package]
+publish = false
+name = "snappy-benchmark"
+version = "0.1.0"
+authors = ["Andrew Gallant <jamslam@gmail.com>"]
+license = "Unlicense/MIT"
+repository = "https://github.com/BurntSushi/snap"
+documentation = "http://burntsushi.net/rustdoc/snap/"
+homepage = "https://github.com/BurntSushi/snap"
+description = "Snappy benchmarks for Rust's and other implementations."
+build = "build.rs"
+
+[dependencies]
+lazy_static = "0.2"
+libc = "0.2"
+snap = { path = "..", version = "0.1" }
+
+[build-dependencies]
+pkg-config = "0.3"
+
+[[bench]]
+name = "bench"
+path = "src/bench.rs"
+test = false
+bench = true
+
+[profile.release]
+debug = true
+
+[profile.bench]
+debug = true
+
+[profile.test]
+debug = true
