@@ -5,13 +5,13 @@ use byteorder::{ByteOrder, LittleEndian as LE};
 use tag::TAG_LOOKUP_TABLE;
 use {
     MAX_INPUT_SIZE,
-    Error, Result, Tag,
+    Error, Result,
     read_varu64,
 };
 
 pub fn decompress(input: &[u8], output: &mut [u8]) -> Result<usize> {
     if input.is_empty() {
-        return Ok(0);
+        return Err(Error::Corrupt);
     }
 
     let hdr = try!(Header::read(input));
@@ -68,11 +68,17 @@ fn decompress_block(mut input: &[u8], output: &mut [u8]) -> Result<()> {
             if s + 4 <= input.len() {
                 LE::read_u32(&input[s..]) as usize & WORD_MASK[extra]
             } else if extra == 1 {
+                if s >= input.len() {
+                    return Err(Error::Corrupt);
+                }
                 input[s] as usize
             } else if extra == 2 {
+                if s + 1 >= input.len() {
+                    return Err(Error::Corrupt);
+                }
                 LE::read_u16(&input[s..]) as usize
             } else {
-                LE::read_u32(&input[s..]) as usize
+                return Err(Error::Corrupt);
             };
 
         len = entry & 0xFF;
@@ -146,6 +152,7 @@ fn inc(n: usize, by: usize, limit: usize) -> Result<usize> {
     }
 }
 
+#[derive(Debug)]
 struct Header {
     /// The length of the header in bytes (i.e., the varint).
     len: usize,
@@ -156,7 +163,7 @@ struct Header {
 impl Header {
     fn read(input: &[u8]) -> Result<Header> {
         let (decompress_len, header_len) = read_varu64(input);
-        if decompress_len == 0 || header_len == 0 {
+        if header_len == 0 {
             return Err(Error::Corrupt);
         }
         if decompress_len > MAX_INPUT_SIZE {

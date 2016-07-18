@@ -22,6 +22,7 @@ byteorder = "0.5.3"
 [dev-dependencies]
 quickcheck = "0.2"
 rand = "0.3"
+snappy-cpp = { path = "snappy-cpp", version = "0.1" }
 
 [profile.release]
 debug = true

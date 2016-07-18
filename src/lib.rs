@@ -5,6 +5,8 @@ extern crate byteorder;
 extern crate quickcheck;
 #[cfg(test)]
 extern crate rand;
+#[cfg(test)]
+extern crate snappy_cpp;
 
 use std::error;
 use std::fmt;
@@ -13,12 +15,13 @@ use std::result;
 pub use compress::{compress, max_compressed_len};
 pub use decompress::{decompress, decompress_len};
 
-const MAX_BLOCK_SIZE: usize = 1<<16;
 const MAX_INPUT_SIZE: u64 = ::std::u32::MAX as u64;
 
 mod compress;
 mod decompress;
 mod tag;
+#[cfg(test)]
+mod tests;
 
 pub type Result<T> = result::Result<T, Error>;
 
@@ -87,18 +90,6 @@ enum Tag {
     Copy3 = 0b11,
 }
 
-impl From<u8> for Tag {
-    fn from(b: u8) -> Tag {
-        match b {
-            0b00 => Tag::Literal,
-            0b01 => Tag::Copy1,
-            0b10 => Tag::Copy2,
-            0b11 => Tag::Copy3,
-            _ => panic!("invalid tag byte: {:x}", b),
-        }
-    }
-}
-
 /// https://developers.google.com/protocol-buffers/docs/encoding#varints
 fn write_varu64(data: &mut [u8], mut n: u64) -> usize {
     let mut i = 0;
@@ -123,46 +114,4 @@ fn read_varu64(data: &[u8]) -> (u64, usize) {
         shift += 7;
     }
     (0, 0)
-}
-
-#[cfg(test)]
-mod tests {
-    use quickcheck::{QuickCheck, StdGen};
-
-    use super::{compress, decompress, decompress_len, max_compressed_len};
-
-    fn roundtrip(bytes: &[u8]) -> Vec<u8> {
-        depress(&press(bytes))
-    }
-
-    fn press(bytes: &[u8]) -> Vec<u8> {
-        let mut buf = vec![0; max_compressed_len(bytes.len())];
-        let n = compress(bytes, &mut buf).unwrap();
-        buf.truncate(n);
-        buf
-    }
-
-    fn depress(bytes: &[u8]) -> Vec<u8> {
-        let mut buf = vec![0; decompress_len(bytes).unwrap()];
-        let m = decompress(bytes, &mut buf).unwrap();
-        buf
-    }
-
-    #[test]
-    fn qc_roundtrip() {
-        fn p(bytes: Vec<u8>) -> bool {
-            roundtrip(&bytes) == bytes
-        }
-        QuickCheck::new()
-            .gen(StdGen::new(::rand::thread_rng(), 10_000))
-            .tests(10_000)
-            .quickcheck(p as fn(_) -> _);
-    }
-
-    #[test]
-    fn roundtrip1() {
-        let data = &[0, 0, 0, 0, 1, 0, 0, 0, 2, 0, 0, 0, 3, 0, 0, 0, 4, 0, 0, 0, 5, 0, 0, 1, 1, 0, 0, 1, 2, 0, 0, 2, 1, 0, 0, 2, 2, 0, 0, 0, 6, 0, 0, 3, 1, 0, 0, 0, 7, 0, 0, 1, 3, 0, 0, 0, 8, 0, 0, 2, 3, 0, 0, 0, 9, 0, 0, 1, 4, 0, 0, 1, 0, 0, 3, 0, 0, 1, 0, 1, 0, 0, 0, 10, 0, 0, 0, 0, 2, 4, 0, 0, 2, 0, 0, 3, 0, 1, 0, 0, 1, 5, 0, 0, 6, 0, 0, 0, 0, 11, 0, 0, 1, 6, 0, 0, 1, 7, 0, 0, 0, 12, 0, 0, 3, 2, 0, 0, 0, 13, 0, 0, 2, 5, 0, 0, 0, 3, 3, 0, 0, 0, 1, 8, 0, 0, 1, 0, 1, 0, 0, 0, 4, 1, 0, 0, 0, 0, 14, 0, 0, 0, 1, 9, 0, 0, 0, 1, 10, 0, 0, 0, 0, 1, 11, 0, 0, 0, 1, 0, 2, 0, 0, 0, 1, 1, 1, 0, 0, 0, 0, 5, 1, 0, 0, 0, 1, 2, 1, 0, 0, 0, 0, 0, 2, 6, 0, 0, 0, 0, 0, 1, 12, 0, 0, 0, 0, 0, 3, 4, 0, 0, 0, 0, 0, 7, 0, 0, 0, 0, 0, 1, 0, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0][..];
-
-        assert_eq!(data, &*roundtrip(data));
-    }
 }
