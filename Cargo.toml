@@ -11,7 +11,7 @@ homepage = "https://github.com/BurntSushi/snap"
 repository = "https://github.com/BurntSushi/snap"
 readme = "README.md"
 keywords = ["snappy", "compress", "compression", "decompress", "decompression"]
-license = "Unlicense/MIT"
+license = "BSD-3-Clause"
 
 [lib]
 bench = false
