@@ -169,10 +169,12 @@ fn emit_literal(
     mut oi: usize,
     allow_fast: bool,
 ) -> usize {
+    // println!("[emit_literal] start: {:?}, end: {:?}, oi: {:?}",
+             // lit_start, lit_end, oi);
     let len = lit_end - lit_start;
     let n = len.checked_sub(1).unwrap();
     unsafe {
-        if len <= 59 {
+        if n <= 59 {
             *output.get_unchecked_mut(oi + 0) = ((n as u8) << 2) | (Tag::Literal as u8);
             oi += 1;
             if allow_fast && len <= 16 {

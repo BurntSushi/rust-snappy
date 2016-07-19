@@ -5,7 +5,7 @@ extern crate byteorder;
 extern crate quickcheck;
 #[cfg(test)]
 extern crate rand;
-#[cfg(test)]
+#[cfg(all(test, feature = "cpp"))]
 extern crate snappy_cpp;
 
 use std::error;
@@ -25,7 +25,7 @@ mod tests;
 
 pub type Result<T> = result::Result<T, Error>;
 
-#[derive(Debug)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub enum Error {
     /// This error occurs when the given input is too big.
     TooBig {
@@ -105,12 +105,18 @@ fn write_varu64(data: &mut [u8], mut n: u64) -> usize {
 /// https://developers.google.com/protocol-buffers/docs/encoding#varints
 fn read_varu64(data: &[u8]) -> (u64, usize) {
     let mut n: u64 = 0;
-    let mut shift: u64 = 0;
+    let mut shift: u32 = 0;
     for (i, &b) in data.iter().enumerate() {
         if b < 0b1000_0000 {
-            return (n | ((b as u64) << shift), i + 1);
+            return match (b as u64).checked_shl(shift) {
+                None => (0, 0),
+                Some(b) => (n | b, i + 1),
+            };
         }
-        n |= ((b as u64) & 0b0111_1111) << shift;
+        match ((b as u64) & 0b0111_1111).checked_shl(shift) {
+            None => return (0, 0),
+            Some(b) => n |= b,
+        }
         shift += 7;
     }
     (0, 0)
