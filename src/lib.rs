@@ -13,7 +13,7 @@ use std::fmt;
 use std::result;
 
 pub use compress::{compress, max_compressed_len};
-pub use decompress::{decompress, decompress_len};
+pub use decompress::{Decoder, decompress_len};
 
 const MAX_INPUT_SIZE: u64 = ::std::u32::MAX as u64;
 

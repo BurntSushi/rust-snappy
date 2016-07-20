@@ -8,9 +8,15 @@ extern crate snappy_cpp;
 extern crate test;
 
 #[cfg(feature = "rust")]
-use snap::{compress, decompress};
+use snap::{Result, compress, Decoder};
 #[cfg(feature = "cpp")]
 use snappy_cpp::{compress, decompress};
+
+#[cfg(feature = "rust")]
+#[inline(always)]
+fn decompress(input: &[u8], output: &mut [u8]) -> Result<usize> {
+    Decoder::new().decompress(input, output)
+}
 
 macro_rules! compress {
     ($comp:expr, $name:ident, $filename:expr) => {

@@ -2,7 +2,7 @@ use quickcheck::{QuickCheck, StdGen};
 #[cfg(feature = "cpp")]
 use snappy_cpp as cpp;
 
-use {Error, compress, decompress, decompress_len, max_compressed_len};
+use {Decoder, Error, compress, decompress_len, max_compressed_len};
 
 // roundtrip is a macro that compresses the input, then decompresses the result
 // and compares it with the original input. If they are not equal, then the
@@ -25,7 +25,7 @@ macro_rules! errored {
         let mut buf = vec![0; 1024];
 
         assert_eq!($err, decompress_len(d).unwrap_err());
-        match decompress(d, &mut buf) {
+        match Decoder::new().decompress(d, &mut buf) {
             Err(ref err) if err == &$err => {}
             Err(ref err) => {
                 panic!("expected decompression to fail with {:?}, \
@@ -226,9 +226,7 @@ fn press(bytes: &[u8]) -> Vec<u8> {
 }
 
 fn depress(bytes: &[u8]) -> Vec<u8> {
-    let mut buf = vec![0; decompress_len(bytes).unwrap()];
-    let m = decompress(bytes, &mut buf).unwrap();
-    buf
+    Decoder::new().decompress_vec(bytes).unwrap()
 }
 
 #[cfg(feature = "cpp")]
