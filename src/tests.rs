@@ -18,13 +18,20 @@ macro_rules! roundtrip {
 // resulted in an error. If decompression was successful, then the test fails.
 macro_rules! errored {
     ($data:expr) => {
-        errored!($data, Error::Corrupt);
+        errored!($data, Error::Corrupt, false);
     };
     ($data:expr, $err:expr) => {
+        errored!($data, $err, false);
+    };
+    ($data:expr, $err:expr, $bad_header:expr) => {
         let d = &$data[..];
-        let mut buf = vec![0; 1024];
 
-        assert_eq!($err, decompress_len(d).unwrap_err());
+        let mut buf = if $bad_header {
+            assert_eq!($err, decompress_len(d).unwrap_err());
+            vec![0; 1024]
+        } else {
+            vec![0; decompress_len(d).unwrap()]
+        };
         match Decoder::new().decompress(d, &mut buf) {
             Err(ref err) if err == &$err => {}
             Err(ref err) => {
@@ -94,12 +101,15 @@ cpp (len == {:?})
 // and if the result is anything other than the error given, the test fails.
 macro_rules! testerrored {
     ($name:ident, $data:expr) => {
-        testerrored!($name, $data, Error::Corrupt);
+        testerrored!($name, $data, Error::Corrupt, false);
     };
     ($name:ident, $data:expr, $err:expr) => {
+        testerrored!($name, $data, $err, false);
+    };
+    ($name:ident, $data:expr, $err:expr, $bad_header:expr) => {
         #[test]
         fn $name() {
-            errored!($data, $err);
+            errored!($data, $err, $bad_header);
         }
     };
 }
@@ -155,13 +165,53 @@ fn small_regular() {
 }
 
 // Tests decompression on malformed data.
-testerrored!(err_varint1, &b"\xFF"[..]);
-testerrored!(err_varint2,
-             &b"\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\x00"[..]);
-testerrored!(err_varint3, &b"\x80\x80\x80\x80\x10"[..],
-             Error::TooBig {
-                 given: 4294967296,
-                 max: 4294967295,
+
+// An invalid varint (final byte has continuation bit set).
+testerrored!(err_varint1, &b"\xFF"[..], Error::Corrupt, true);
+
+// A varint that overflows u64.
+testerrored!(
+    err_varint2,
+    &b"\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\x00"[..],
+    Error::Corrupt,
+    true
+);
+
+// A varint that fits in u64 but overflows u32.
+testerrored!(
+    err_varint3,
+    &b"\x80\x80\x80\x80\x10"[..],
+    Error::TooBig {
+        given: 4294967296,
+        max: 4294967295,
+    },
+    true
+);
+
+// A literal whose length is too small.
+testerrored!(err_lit1, &b"\x02\x01hi"[..]);
+// A literal whose length is too big.
+testerrored!(err_lit2_big1, &b"\x02\xechi"[..],
+             Error::Literal {
+                 len: 60,
+                 src_len: 2,
+                 dst_len: 2,
+             });
+// A literal whose length is too big, requires 1 extra byte to be read, and
+// src is too short to read that byte.
+testerrored!(err_lit2_big2a, &b"\x02\xf0hi"[..],
+             Error::Literal {
+                 len: 4,
+                 src_len: 2,
+                 dst_len: 2,
+             });
+// A literal whose length is too big, requires 1 extra byte to be read,
+// src is too short to read the full literal.
+testerrored!(err_lit2_big2b, &b"\x02\xf0hi\x00\x00\x00"[..],
+             Error::Literal {
+                 len: 105, // because 105 == 'h' as u8 + 1
+                 src_len: 4,
+                 dst_len: 2,
              });
 
 // Selected random inputs pulled from quickcheck failure witnesses.

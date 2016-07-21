@@ -44,6 +44,16 @@ pub enum Error {
     },
     /// This error occurs during decompression when invalid input is found.
     Corrupt,
+    /// This error occurs during decompression when there was a problem
+    /// reading a literal.
+    Literal {
+        /// The expected length of the literal.
+        len: u64,
+        /// The number of remaining bytes in the compressed bytes.
+        src_len: u64,
+        /// The number of remaining slots in the decompression buffer.
+        dst_len: u64,
+    },
     /// Hints that destructuring should not be exhaustive.
     ///
     /// This enum may grow additional variants, so this makes sure clients
@@ -59,6 +69,7 @@ impl error::Error for Error {
             Error::TooBig { .. } => "snappy: input buffer too big",
             Error::BufferTooSmall { .. } => "snappy: output buffer too small",
             Error::Corrupt => "snappy: corrupt input",
+            Error::Literal { .. } => "snappy: corrupt input (bad literal)",
             _ => unreachable!(),
         }
     }
@@ -77,6 +88,11 @@ impl fmt::Display for Error {
             }
             Error::Corrupt => {
                 write!(f, "snappy: corrupt input")
+            }
+            Error::Literal { len, src_len, dst_len } => {
+                write!(f, "snappy: corrupt input (expected read of length \
+                           {}; remaining src: {}; remaining dst: {})",
+                       len, src_len, dst_len)
             }
             _ => unreachable!(),
         }

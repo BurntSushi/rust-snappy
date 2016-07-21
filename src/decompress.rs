@@ -10,6 +10,12 @@ use {
 };
 
 const TAG_LOOKUP_TABLE: TagLookupTable = TagLookupTable(tag::TAG_LOOKUP_TABLE);
+
+/// WORD_MASK is a map from the size of an integer in bytes to its
+/// corresponding on a 32 bit integer. This is used when we need to read an
+/// integer and we know there are at least 4 bytes to read from a buffer. In
+/// this case, we can read a 32 bit little endian integer and mask out only the
+/// bits we need. This in particular saves a branch.
 const WORD_MASK: [usize; 5] = [0, 0xFF, 0xFFFF, 0xFFFFFF, 0xFFFFFFFF];
 
 /// Returns the decompressed size (in bytes) of the compressed bytes given.
@@ -126,6 +132,15 @@ fn decompress_block(src: &[u8], dst: &mut [u8]) -> Result<()> {
     Ok(())
 }
 
+/// Decompresses a literal from `src` starting at `s` to `dst` starting at `d`
+/// and returns the updated values of `s` and `d`.
+///
+/// `len` is the length of the literal if it's <=60. Otherwise, it's the length
+/// tag, indicating the number of bytes needed to read a little endian
+/// integer at `src[s..]`. i.e., `61 => 1 byte`, `62 => 2 bytes`,
+/// `63 => 3 bytes` and `64 => 4 bytes`.
+///
+/// `len` must be <=64.
 #[inline(always)]
 fn read_literal(
     src: &[u8],
@@ -134,29 +149,63 @@ fn read_literal(
     mut d: usize,
     mut len: usize,
 ) -> Result<(usize, usize)> {
-    if len <= 16 && d + 16 <= dst.len() && s + 16 <= src.len() {
+    debug_assert!(len <= 64);
+    // As an optimization for the common case, if the literal length is <=16
+    // and we have enough room in both `src` and `dst`, copy the literal using
+    // unaligned loads and stores.
+    //
+    // We pick 16 bytes with the hope that it optimizes down to a 128 bit
+    // load/store.
+    if len <= 16 && s + 16 <= src.len() && d + 16 <= dst.len() {
         unsafe {
-            ptr::copy_nonoverlapping(
-                src.as_ptr().offset(s as isize),
-                dst.as_mut_ptr().offset(d as isize),
-                16);
+            // SAFETY: We know both src and dst have at least 16 bytes of
+            // wiggle room after s/d, even if `len` is <16, so the copy is
+            // safe.
+            let srcp = src.as_ptr().offset(s as isize);
+            let dstp = dst.as_mut_ptr().offset(d as isize);
+            ptr::copy_nonoverlapping(srcp, dstp, 16);
         }
         d += len;
         s += len;
         return Ok((s, d));
     }
+    // When the length is bigger than 60, it indicates that we need to read
+    // an additional 1-4 bytes to get the real length of the literal.
+    // println!("len: {:?}", len);
     if len >= 61 {
-        if (s as u64) + 4 > src.len() as u64 {
-            return Err(Error::Corrupt);
+        // If there aren't at least 4 bytes left to read then we know this is
+        // corrupt because the literal must have length >=61.
+        // println!("s: {:?}, src.len: {:?}", s, src.len());
+        if s as u64 + 4 > src.len() as u64 {
+            return Err(Error::Literal {
+                len: 4,
+                src_len: (src.len() - s) as u64,
+                dst_len: (dst.len() - d) as u64,
+            });
         }
+        // Since we know there are 4 bytes left to read, read a 32 bit LE
+        // integer and mask away the bits we don't need.
+        let byte_count = len - 60;
         let old_len = len;
-        len = (LE::read_u32(&src[s..]) as usize & WORD_MASK[len - 60]) + 1;
+        len = (LE::read_u32(&src[s..]) as usize & WORD_MASK[byte_count]) + 1;
         s += old_len - 60;
     }
-    if d + len > dst.len() || s + len > src.len() {
-        return Err(Error::Corrupt);
+    // If there's not enough buffer left to load or store this literal, then
+    // the input is corrupt.
+    if s + len > src.len() || d + len > dst.len() {
+        return Err(Error::Literal {
+            len: len as u64,
+            src_len: (src.len() - s) as u64,
+            dst_len: (dst.len() - d) as u64,
+        });
     }
-    dst[d..d + len].copy_from_slice(&src[s..s + len]);
+    unsafe {
+        // SAFETY: We've already checked the bounds, so we know this copy is
+        // correct.
+        let srcp = src.as_ptr().offset(s as isize);
+        let dstp = dst.as_mut_ptr().offset(d as isize);
+        ptr::copy_nonoverlapping(srcp, dstp, len);
+    }
     s += len;
     d += len;
     Ok((s, d))
@@ -289,15 +338,12 @@ impl TagEntry {
     }
 }
 
-unsafe fn loadu32(data: *const u8) -> u32 {
+#[inline(always)]
+unsafe fn loadu32_le(data: *const u8) -> u32 {
     let mut n: u32 = 0;
     ptr::copy_nonoverlapping(
         data,
         &mut n as *mut u32 as *mut u8,
         4);
-    n
-}
-
-unsafe fn loadu32_le(data: *const u8) -> u32 {
-    loadu32(data).to_le()
+    n.to_le()
 }
