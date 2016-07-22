@@ -21,7 +21,7 @@ byteorder = "0.5.3"
 snappy-cpp = { path = "snappy-cpp", version = "0.1", optional = true }
 
 [dev-dependencies]
-quickcheck = "0.2"
+quickcheck = "0.3"
 rand = "0.3"
 
 [features]

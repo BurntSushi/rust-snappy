@@ -17,9 +17,6 @@ macro_rules! roundtrip {
 // errored is a macro that tries to decompress the input and asserts that it
 // resulted in an error. If decompression was successful, then the test fails.
 macro_rules! errored {
-    ($data:expr) => {
-        errored!($data, Error::Corrupt, false);
-    };
     ($data:expr, $err:expr) => {
         errored!($data, $err, false);
     };
@@ -100,9 +97,6 @@ cpp (len == {:?})
 // testcorrupt is a macro that defines a test that decompresses the input,
 // and if the result is anything other than the error given, the test fails.
 macro_rules! testerrored {
-    ($name:ident, $data:expr) => {
-        testerrored!($name, $data, Error::Corrupt, false);
-    };
     ($name:ident, $data:expr, $err:expr) => {
         testerrored!($name, $data, $err, false);
     };
@@ -166,14 +160,24 @@ fn small_regular() {
 
 // Tests decompression on malformed data.
 
+// An empty buffer.
+testerrored!(err_empty, &b""[..], Error::Empty);
+
+// Decompress fewer bytes than the header reports.
+testerrored!(err_header_mismatch, &b"\x05\x00a"[..],
+             Error::HeaderMismatch {
+                 expected_len: 5,
+                 got_len: 1,
+             });
+
 // An invalid varint (final byte has continuation bit set).
-testerrored!(err_varint1, &b"\xFF"[..], Error::Corrupt, true);
+testerrored!(err_varint1, &b"\xFF"[..], Error::Header, true);
 
 // A varint that overflows u64.
 testerrored!(
     err_varint2,
     &b"\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\x00"[..],
-    Error::Corrupt,
+    Error::Header,
     true
 );
 
@@ -189,9 +193,15 @@ testerrored!(
 );
 
 // A literal whose length is too small.
-testerrored!(err_lit1, &b"\x02\x01hi"[..]);
+// Since the literal length is 1, 'h' is read as a literal and 'i' is
+// interpreted as a copy 1 operation missing its offset byte.
+testerrored!(err_lit, &b"\x02\x00hi"[..],
+             Error::CopyRead {
+                 len: 1,
+                 src_len: 0,
+             });
 // A literal whose length is too big.
-testerrored!(err_lit2_big1, &b"\x02\xechi"[..],
+testerrored!(err_lit_big1, &b"\x02\xechi"[..],
              Error::Literal {
                  len: 60,
                  src_len: 2,
@@ -199,7 +209,7 @@ testerrored!(err_lit2_big1, &b"\x02\xechi"[..],
              });
 // A literal whose length is too big, requires 1 extra byte to be read, and
 // src is too short to read that byte.
-testerrored!(err_lit2_big2a, &b"\x02\xf0hi"[..],
+testerrored!(err_lit_big2a, &b"\x02\xf0hi"[..],
              Error::Literal {
                  len: 4,
                  src_len: 2,
@@ -207,11 +217,46 @@ testerrored!(err_lit2_big2a, &b"\x02\xf0hi"[..],
              });
 // A literal whose length is too big, requires 1 extra byte to be read,
 // src is too short to read the full literal.
-testerrored!(err_lit2_big2b, &b"\x02\xf0hi\x00\x00\x00"[..],
+testerrored!(err_lit_big2b, &b"\x02\xf0hi\x00\x00\x00"[..],
              Error::Literal {
                  len: 105, // because 105 == 'h' as u8 + 1
                  src_len: 4,
                  dst_len: 2,
+             });
+
+// A copy 1 operation that stops at the tag byte. This fails because there's
+// no byte to read for the copy offset.
+testerrored!(err_copy1, &b"\x02\x00a\x01"[..],
+             Error::CopyRead { len: 1, src_len: 0 });
+// A copy 2 operation that stops at the tag byte and another copy 2 operation
+// that stops after the first byte in the offset.
+testerrored!(err_copy2a, &b"\x11\x00a\x3e"[..],
+             Error::CopyRead { len: 2, src_len: 0 });
+testerrored!(err_copy2b, &b"\x11\x00a\x3e\x01"[..],
+             Error::CopyRead { len: 2, src_len: 1 });
+// Same as copy 2, but for copy 4.
+testerrored!(err_copy3a, &b"\x11\x00a\x3f"[..],
+             Error::CopyRead { len: 4, src_len: 0 });
+testerrored!(err_copy3b, &b"\x11\x00a\x3f\x00"[..],
+             Error::CopyRead { len: 4, src_len: 1 });
+testerrored!(err_copy3c, &b"\x11\x00a\x3f\x00\x00"[..],
+             Error::CopyRead { len: 4, src_len: 2 });
+testerrored!(err_copy3d, &b"\x11\x00a\x3f\x00\x00\x00"[..],
+             Error::CopyRead { len: 4, src_len: 3 });
+
+// A copy operation whose offset is zero.
+testerrored!(err_copy_offset_zero, &b"\x11\x00a\x01\x00"[..],
+             Error::Offset { offset: 0, dst_pos: 1 });
+
+// A copy operation whose offset is too big.
+testerrored!(err_copy_offset_big, &b"\x11\x00a\x01\xFF"[..],
+             Error::Offset { offset: 255, dst_pos: 1 });
+
+// A copy operation whose length is too big.
+testerrored!(err_copy_len_big, &b"\x05\x00a\x1d\x01"[..],
+             Error::CopyWrite {
+                 len: 11,
+                 dst_len: 4,
              });
 
 // Selected random inputs pulled from quickcheck failure witnesses.

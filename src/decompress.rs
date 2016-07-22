@@ -81,7 +81,7 @@ impl Decoder {
         output: &mut [u8],
     ) -> Result<usize> {
         if input.is_empty() {
-            return Err(Error::Corrupt);
+            return Err(Error::Empty);
         }
         let hdr = try!(Header::read(input));
         if hdr.decompress_len > output.len() {
@@ -127,7 +127,10 @@ fn decompress_block(src: &[u8], dst: &mut [u8]) -> Result<()> {
         d = _d;
     }
     if d != dst.len() {
-        return Err(Error::Corrupt);
+        return Err(Error::HeaderMismatch {
+            expected_len: dst.len() as u64,
+            got_len: d as u64,
+        });
     }
     Ok(())
 }
@@ -224,7 +227,10 @@ fn read_copy(
     s += entry.num_tag_bytes();
 
     if d <= offset.wrapping_sub(1) {
-        return Err(Error::Corrupt);
+        return Err(Error::Offset {
+            offset: offset as u64,
+            dst_pos: d as u64,
+        });
     }
     let end = d + len;
     if len <= 16 && offset >= 8 && d + 16 <= dst.len() {
@@ -257,7 +263,10 @@ fn read_copy(
             }
         } else {
             if end > dst.len() {
-                return Err(Error::Corrupt);
+                return Err(Error::CopyWrite {
+                    len: len as u64,
+                    dst_len: (dst.len() - d) as u64,
+                });
             }
             while d != end {
                 dst[d] = dst[d - offset];
@@ -268,6 +277,8 @@ fn read_copy(
     Ok((s, end))
 }
 
+/// Header represents the single varint that starts every Snappy compressed
+/// block.
 #[derive(Debug)]
 struct Header {
     /// The length of the header in bytes (i.e., the varint).
@@ -277,11 +288,15 @@ struct Header {
 }
 
 impl Header {
+    /// Reads the varint header from the given input.
+    ///
+    /// If there was a problem reading the header then an error is returned.
+    /// If a header is returned then it is guaranteed to be valid.
     #[inline(always)]
     fn read(input: &[u8]) -> Result<Header> {
         let (decompress_len, header_len) = read_varu64(input);
         if header_len == 0 {
-            return Err(Error::Corrupt);
+            return Err(Error::Header);
         }
         if decompress_len > MAX_INPUT_SIZE {
             return Err(Error::TooBig {
@@ -293,46 +308,101 @@ impl Header {
     }
 }
 
+/// A lookup table for quickly computing the various attributes derived from
+/// a tag byte. The attributes are most useful for the three "copy" tags
+/// and include the length of the copy, part of the offset (for copy 1-byte
+/// only) and the total number of bytes proceding the tag byte that encode
+/// the other part of the offset (1 for copy 1, 2 for copy 2 and 4 for copy 4).
+///
+/// More specifically, the keys of the table are u8s and the values are u16s.
+/// The bits of the values are laid out as follows:
+///
+/// xxaa abbb xxcc cccc
+///
+/// Where `a` is the number of bytes, `b` are the three bits of the offset
+/// for copy 1 (the other 8 bits are in the byte proceding the tag byte; for
+/// copy 2 and copy 4, `b = 0`), and `c` is the length of the copy (max of 64).
+///
+/// We could pack this in fewer bits, but the position of the three `b` bits
+/// lines up with the most significant three bits in the total offset for copy
+/// 1, which avoids an extra shift instruction.
+///
+/// In sum, this table is useful because it reduces branches and various
+/// arithmetic operations.
 struct TagLookupTable([u16; 256]);
 
 impl TagLookupTable {
+    /// Look up the tag entry given the tag `byte`.
     #[inline(always)]
     fn entry(&self, byte: u8) -> TagEntry {
         TagEntry(self.0[byte as usize] as usize)
     }
 }
 
+/// Represents a single entry in the tag lookup table.
+///
+/// See the documentation in TagLookupTable for the bit layout.
+///
+/// The type is a `usize` for convenience.
 struct TagEntry(usize);
 
 impl TagEntry {
+    /// Return the total number of bytes proceding this tag byte required to
+    /// encode the offset.
     fn num_tag_bytes(&self) -> usize {
         self.0 >> 11
     }
 
+    /// Return the total copy length, capped at 64.
     fn len(&self) -> usize {
         self.0 & 0xFF
     }
 
+    /// Return the copy offset corresponding to this copy operation. `s` should
+    /// point to the position just after the tag byte that this entry was read
+    /// from.
+    ///
+    /// This requires reading from the compressed input since the offset is
+    /// encoded in bytes proceding the tag byte.
     fn offset(&self, src: &[u8], s: usize) -> Result<usize> {
         let num_tag_bytes = self.num_tag_bytes();
         let trailer =
+            // It is critical for this case to come first, since it is the
+            // fast path. We really hope that this case gets branch
+            // predicted.
             if s + 4 <= src.len() {
                 unsafe {
+                    // SAFETY: The conditional above guarantees that
+                    // src[s..s+4] is valid to read from.
                     let p = src.as_ptr().offset(s as isize);
+                    // We use WORD_MASK here to mask out the bits we don't
+                    // need. While we're guaranteed to read 4 valid bytes,
+                    // not all of those bytes are necessarily part of the
+                    // offset. This is the key optimization: we don't need to
+                    // branch on num_tag_bytes.
                     loadu32_le(p) as usize & WORD_MASK[num_tag_bytes]
                 }
             } else if num_tag_bytes == 1 {
                 if s >= src.len() {
-                    return Err(Error::Corrupt);
+                    return Err(Error::CopyRead {
+                        len: 1,
+                        src_len: (src.len() - s) as u64,
+                    });
                 }
                 src[s] as usize
             } else if num_tag_bytes == 2 {
                 if s + 1 >= src.len() {
-                    return Err(Error::Corrupt);
+                    return Err(Error::CopyRead {
+                        len: 2,
+                        src_len: (src.len() - s) as u64,
+                    });
                 }
                 LE::read_u16(&src[s..]) as usize
             } else {
-                return Err(Error::Corrupt);
+                return Err(Error::CopyRead {
+                    len: num_tag_bytes as u64,
+                    src_len: (src.len() - s) as u64,
+                });
             };
         Ok((self.0 & 0b0000_0111_0000_0000) | trailer)
     }

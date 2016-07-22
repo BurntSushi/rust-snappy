@@ -16,6 +16,8 @@ pub const TAG_LOOKUP_TABLE: [u16; 256] = [
 '''
 
 
+# N.B. See the docs on TagLookupTable in src/decompress.rs for the bit layout
+# details. Keep a copy of the Snappy format specification handy!
 def entry(byte):
     tag = byte & 0b00000011
     if tag == 0b00:
