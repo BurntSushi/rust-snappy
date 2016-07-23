@@ -9,6 +9,8 @@ use {
     read_varu64,
 };
 
+/// A lookup table for quickly computing the various attributes derived from a
+/// tag byte.
 const TAG_LOOKUP_TABLE: TagLookupTable = TagLookupTable(tag::TAG_LOOKUP_TABLE);
 
 /// WORD_MASK is a map from the size of an integer in bytes to its
@@ -46,15 +48,15 @@ pub fn decompress_len(input: &[u8]) -> Result<usize> {
 /// `Reader` instead, which decompresses the Snappy frame format.
 #[derive(Clone, Debug, Default)]
 pub struct Decoder {
-    total_in: u64,
-    total_out: u64,
+    // Place holder for potential future fields.
+    _dummy: (),
 }
 
 impl Decoder {
     /// Return a new decoder that can be used for decompressing bytes.
     #[inline(always)]
     pub fn new() -> Decoder {
-        Decoder { total_in: 0, total_out: 0 }
+        Decoder { _dummy: () }
     }
 
     /// Decompresses all bytes in `input` into `output`.
@@ -90,9 +92,15 @@ impl Decoder {
                 min: hdr.decompress_len as u64,
             });
         }
-        let output = &mut output[..hdr.decompress_len];
-        try!(decompress_block(&input[hdr.len..], output));
-        Ok(output.len())
+        let dst = &mut output[..hdr.decompress_len];
+        let mut dec = Decompress {
+            src: &input[hdr.len..],
+            s: 0,
+            dst: dst,
+            d: 0,
+        };
+        try!(dec.decompress());
+        Ok(dec.dst.len())
     }
 
     /// Decompresses all bytes in `input` into a freshly allocated `Vec`.
@@ -110,171 +118,232 @@ impl Decoder {
     }
 }
 
-fn decompress_block(src: &[u8], dst: &mut [u8]) -> Result<()> {
-    let (mut d, mut s, mut offset, mut len) = (0, 0, 0, 0);
-    while s < src.len() {
-        let byte = src[s];
-        s += 1;
-        let entry = TAG_LOOKUP_TABLE.entry(byte);
-        let (_s, _d) =
+/// Decompress is the state of the Snappy compressor.
+struct Decompress<'s, 'd> {
+    /// The original compressed bytes not including the header.
+    src: &'s [u8],
+    /// The current position in the compressed bytes.
+    s: usize,
+    /// The output buffer to write the decompressed bytes.
+    dst: &'d mut [u8],
+    /// The current position in the decompressed buffer.
+    d: usize,
+}
+
+impl<'s, 'd> Decompress<'s, 'd> {
+    /// Decompresses snappy compressed bytes in `src` to `dst`.
+    ///
+    /// This assumes that the header has already been read and that `dst` is
+    /// big enough to store all decompressed bytes.
+    fn decompress(&mut self) -> Result<()> {
+        while self.s < self.src.len() {
+            let byte = self.src[self.s];
+            self.s += 1;
             if byte & 0b000000_11 == 0 {
                 let mut len = (byte >> 2) as usize + 1;
-                try!(read_literal(src, s, dst, d, len))
+                try!(self.read_literal(len));
             } else {
-                try!(read_copy(src, s, dst, d, entry))
-            };
-        s = _s;
-        d = _d;
-    }
-    if d != dst.len() {
-        return Err(Error::HeaderMismatch {
-            expected_len: dst.len() as u64,
-            got_len: d as u64,
-        });
-    }
-    Ok(())
-}
-
-/// Decompresses a literal from `src` starting at `s` to `dst` starting at `d`
-/// and returns the updated values of `s` and `d`.
-///
-/// `len` is the length of the literal if it's <=60. Otherwise, it's the length
-/// tag, indicating the number of bytes needed to read a little endian
-/// integer at `src[s..]`. i.e., `61 => 1 byte`, `62 => 2 bytes`,
-/// `63 => 3 bytes` and `64 => 4 bytes`.
-///
-/// `len` must be <=64.
-#[inline(always)]
-fn read_literal(
-    src: &[u8],
-    mut s: usize,
-    dst: &mut [u8],
-    mut d: usize,
-    mut len: usize,
-) -> Result<(usize, usize)> {
-    debug_assert!(len <= 64);
-    // As an optimization for the common case, if the literal length is <=16
-    // and we have enough room in both `src` and `dst`, copy the literal using
-    // unaligned loads and stores.
-    //
-    // We pick 16 bytes with the hope that it optimizes down to a 128 bit
-    // load/store.
-    if len <= 16 && s + 16 <= src.len() && d + 16 <= dst.len() {
-        unsafe {
-            // SAFETY: We know both src and dst have at least 16 bytes of
-            // wiggle room after s/d, even if `len` is <16, so the copy is
-            // safe.
-            let srcp = src.as_ptr().offset(s as isize);
-            let dstp = dst.as_mut_ptr().offset(d as isize);
-            ptr::copy_nonoverlapping(srcp, dstp, 16);
+                try!(self.read_copy(byte));
+            }
         }
-        d += len;
-        s += len;
-        return Ok((s, d));
-    }
-    // When the length is bigger than 60, it indicates that we need to read
-    // an additional 1-4 bytes to get the real length of the literal.
-    // println!("len: {:?}", len);
-    if len >= 61 {
-        // If there aren't at least 4 bytes left to read then we know this is
-        // corrupt because the literal must have length >=61.
-        // println!("s: {:?}, src.len: {:?}", s, src.len());
-        if s as u64 + 4 > src.len() as u64 {
-            return Err(Error::Literal {
-                len: 4,
-                src_len: (src.len() - s) as u64,
-                dst_len: (dst.len() - d) as u64,
+        if self.d != self.dst.len() {
+            return Err(Error::HeaderMismatch {
+                expected_len: self.dst.len() as u64,
+                got_len: self.d as u64,
             });
         }
-        // Since we know there are 4 bytes left to read, read a 32 bit LE
-        // integer and mask away the bits we don't need.
-        let byte_count = len - 60;
-        let old_len = len;
-        len = (LE::read_u32(&src[s..]) as usize & WORD_MASK[byte_count]) + 1;
-        s += old_len - 60;
+        Ok(())
     }
-    // If there's not enough buffer left to load or store this literal, then
-    // the input is corrupt.
-    if s + len > src.len() || d + len > dst.len() {
-        return Err(Error::Literal {
-            len: len as u64,
-            src_len: (src.len() - s) as u64,
-            dst_len: (dst.len() - d) as u64,
-        });
-    }
-    unsafe {
-        // SAFETY: We've already checked the bounds, so we know this copy is
-        // correct.
-        let srcp = src.as_ptr().offset(s as isize);
-        let dstp = dst.as_mut_ptr().offset(d as isize);
-        ptr::copy_nonoverlapping(srcp, dstp, len);
-    }
-    s += len;
-    d += len;
-    Ok((s, d))
-}
 
-#[inline(always)]
-fn read_copy(
-    src: &[u8],
-    mut s: usize,
-    dst: &mut [u8],
-    mut d: usize,
-    entry: TagEntry,
-) -> Result<(usize, usize)> {
-    let offset = try!(entry.offset(src, s));
-    let len = entry.len();
-    s += entry.num_tag_bytes();
-
-    if d <= offset.wrapping_sub(1) {
-        return Err(Error::Offset {
-            offset: offset as u64,
-            dst_pos: d as u64,
-        });
-    }
-    let end = d + len;
-    if len <= 16 && offset >= 8 && d + 16 <= dst.len() {
-        unsafe {
-            let mut dstp = dst.as_mut_ptr().offset(d as isize);
-            let mut srcp = dstp.offset(-(offset as isize));
-            ptr::copy_nonoverlapping(srcp, dstp, 8);
-            ptr::copy_nonoverlapping(srcp.offset(8), dstp.offset(8), 8);
-        }
-    } else {
-        if end + 10 <= dst.len() {
+    /// Decompresses a literal from `src` starting at `s` to `dst` starting at
+    /// `d` and returns the updated values of `s` and `d`. `s` should point to
+    /// the byte immediately proceding the literal tag byte.
+    ///
+    /// `len` is the length of the literal if it's <=60. Otherwise, it's the
+    /// length tag, indicating the number of bytes needed to read a little
+    /// endian integer at `src[s..]`. i.e., `61 => 1 byte`, `62 => 2 bytes`,
+    /// `63 => 3 bytes` and `64 => 4 bytes`.
+    ///
+    /// `len` must be <=64.
+    #[inline(always)]
+    fn read_literal(
+        &mut self,
+        mut len: usize,
+    ) -> Result<()> {
+        debug_assert!(len <= 64);
+        // As an optimization for the common case, if the literal length is
+        // <=16 and we have enough room in both `src` and `dst`, copy the
+        // literal using unaligned loads and stores.
+        //
+        // We pick 16 bytes with the hope that it optimizes down to a 128 bit
+        // load/store.
+        if len <= 16
+            && self.s + 16 <= self.src.len()
+            && self.d + 16 <= self.dst.len() {
             unsafe {
-                let mut dstp = dst.as_mut_ptr().offset(d as isize);
+                // SAFETY: We know both src and dst have at least 16 bytes of
+                // wiggle room after s/d, even if `len` is <16, so the copy is
+                // safe.
+                let srcp = self.src.as_ptr().offset(self.s as isize);
+                let dstp = self.dst.as_mut_ptr().offset(self.d as isize);
+                // Hopefully uses SIMD registers for 128 bit load/store.
+                ptr::copy_nonoverlapping(srcp, dstp, 16);
+            }
+            self.d += len;
+            self.s += len;
+            return Ok(());
+        }
+        // When the length is bigger than 60, it indicates that we need to read
+        // an additional 1-4 bytes to get the real length of the literal.
+        if len >= 61 {
+            // If there aren't at least 4 bytes left to read then we know this
+            // is corrupt because the literal must have length >=61.
+            if self.s as u64 + 4 > self.src.len() as u64 {
+                return Err(Error::Literal {
+                    len: 4,
+                    src_len: (self.src.len() - self.s) as u64,
+                    dst_len: (self.dst.len() - self.d) as u64,
+                });
+            }
+            // Since we know there are 4 bytes left to read, read a 32 bit LE
+            // integer and mask away the bits we don't need.
+            let byte_count = len - 60;
+            len = LE::read_u32(&self.src[self.s..]) as usize;
+            len = (len & WORD_MASK[byte_count]) + 1;
+            self.s += byte_count;
+        }
+        // If there's not enough buffer left to load or store this literal,
+        // then the input is corrupt.
+        if self.s + len > self.src.len() || self.d + len > self.dst.len() {
+            return Err(Error::Literal {
+                len: len as u64,
+                src_len: (self.src.len() - self.s) as u64,
+                dst_len: (self.dst.len() - self.d) as u64,
+            });
+        }
+        unsafe {
+            // SAFETY: We've already checked the bounds, so we know this copy
+            // is correct.
+            let srcp = self.src.as_ptr().offset(self.s as isize);
+            let dstp = self.dst.as_mut_ptr().offset(self.d as isize);
+            ptr::copy_nonoverlapping(srcp, dstp, len);
+        }
+        self.s += len;
+        self.d += len;
+        Ok(())
+    }
+
+    /// Reads a copy from `src` and writes the decompressed bytes to `dst`. `s`
+    /// should point to the byte immediately proceding the copy tag byte.
+    #[inline(always)]
+    fn read_copy(
+        &mut self,
+        tag_byte: u8,
+    ) -> Result<()> {
+        // Find the copy offset and len, then advance the input past the copy.
+        // The rest of this function deals with reading/writing to output only.
+        let entry = TAG_LOOKUP_TABLE.entry(tag_byte);
+        let offset = try!(entry.offset(self.src, self.s));
+        let len = entry.len();
+        self.s += entry.num_tag_bytes();
+
+        // What we really care about here is whether `d == 0` or `d < offset`.
+        // To save an extra branch, use `d < offset - 1` instead. If `d` is
+        // `0`, then `offset.wrapping_sub(1)` will be usize::MAX which is also
+        // the max value of `d`.
+        if self.d <= offset.wrapping_sub(1) {
+            return Err(Error::Offset {
+                offset: offset as u64,
+                dst_pos: self.d as u64,
+            });
+        }
+        // When all is said and done, dst is advanced to end.
+        let end = self.d + len;
+        // When the copy is small and the offset is at least 8 bytes away from
+        // `d`, then we can decompress the copy with two 64 bit unaligned
+        // loads/stores.
+        if offset >= 8 && len <= 16 && self.d + 16 <= self.dst.len() {
+            unsafe {
+                // SAFETY: We know dstp points to at least 16 bytes of memory
+                // from the condition above, and we also know that dstp is
+                // preceded by at least `offset` bytes from the `d <= offset`
+                // check above.
+                //
+                // We also know that dstp and dstp-8 do not overlap from the
+                // check above, justifying the use of copy_nonoverlapping.
+                let mut dstp = self.dst.as_mut_ptr().offset(self.d as isize);
+                let mut srcp = dstp.offset(-(offset as isize));
+                // We can't do a single 16 byte load/store because src/dst may
+                // overlap with each other. Namely, the second copy here may
+                // copy bytes written in the first copy!
+                ptr::copy_nonoverlapping(srcp, dstp, 8);
+                ptr::copy_nonoverlapping(srcp.offset(8), dstp.offset(8), 8);
+            }
+        // If we have some wiggle room, try to decompress the copy 16 bytes
+        // at a time with 128 bit unaligned loads/stores. Remember, we can't
+        // just do a memcpy because decompressing copies my require copying
+        // overlapping memory.
+        //
+        // We need the extra wiggle room to make effective use of 128 bit
+        // loads/stores. Even if the store ends up copying more data than we
+        // need, we're careful to advance `d` by the correct amount at the end.
+        } else if end + 23 <= self.dst.len() {
+            unsafe {
+                // SAFETY: We know that dstp is preceded by at least `offset`
+                // bytes from the `d <= offset` check above.
+                //
+                // We don't know whether dstp overlaps with srcp, so we start
+                // by copying from srcp to dstp until they no longer overlap.
+                // The worst case is when dstp-src = 1 and copy length = 1. The
+                // first loop will issue these copy operations before stopping:
+                //
+                //   [0, 15] -> [1, 16]
+                //   [0, 15] -> [2, 17]
+                //   [0, 15] -> [4, 19]
+                //   [0, 15] -> [8, 23]
+                //
+                // But the copy had length 1, so it was only supposed to write
+                // to [0, 0]. But the last copy wrote to [8, 23], which is 23
+                // extra bytes in dst *beyond* the end of the copy, which is
+                // guaranteed by the conditional above.
+                let mut dstp = self.dst.as_mut_ptr().offset(self.d as isize);
                 let mut srcp = dstp.offset(-(offset as isize));
                 loop {
                     let diff = (dstp as isize) - (srcp as isize);
-                    if diff >= 8 {
+                    if diff >= 16 {
                         break;
                     }
-                    ptr::copy(srcp, dstp, 8);
-                    d += diff as usize;
+                    // srcp and dstp can overlap, so use ptr::copy.
+                    ptr::copy(srcp, dstp, 16);
+                    self.d += diff as usize;
                     dstp = dstp.offset(diff);
                 }
-                while d < end {
-                    ptr::copy_nonoverlapping(srcp, dstp, 8);
-                    srcp = srcp.offset(8);
-                    dstp = dstp.offset(8);
-                    d += 8;
+                while self.d < end {
+                    ptr::copy_nonoverlapping(srcp, dstp, 16);
+                    srcp = srcp.offset(16);
+                    dstp = dstp.offset(16);
+                    self.d += 16;
                 }
+                // At this point, `d` is likely wrong. We correct it before
+                // returning. It's correct value is `end`.
             }
         } else {
-            if end > dst.len() {
+            if end > self.dst.len() {
                 return Err(Error::CopyWrite {
                     len: len as u64,
-                    dst_len: (dst.len() - d) as u64,
+                    dst_len: (self.dst.len() - self.d) as u64,
                 });
             }
-            while d != end {
-                dst[d] = dst[d - offset];
-                d += 1;
+            // Finally, the slow byte-by-byte case, which should only be used
+            // for the last few bytes of decompression.
+            while self.d != end {
+                self.dst[self.d] = self.dst[self.d - offset];
+                self.d += 1;
             }
         }
+        self.d = end;
+        Ok(())
     }
-    Ok((s, end))
 }
 
 /// Header represents the single varint that starts every Snappy compressed
@@ -408,6 +477,9 @@ impl TagEntry {
     }
 }
 
+/// Loads a little endian encoded u32 from data.
+///
+/// This is unsafe because `data` must point to some memory of size at least 4.
 #[inline(always)]
 unsafe fn loadu32_le(data: *const u8) -> u32 {
     let mut n: u32 = 0;
