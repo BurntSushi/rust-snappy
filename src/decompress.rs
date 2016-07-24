@@ -139,7 +139,7 @@ impl<'s, 'd> Decompress<'s, 'd> {
             let byte = self.src[self.s];
             self.s += 1;
             if byte & 0b000000_11 == 0 {
-                let mut len = (byte >> 2) as usize + 1;
+                let len = (byte >> 2) as usize + 1;
                 try!(self.read_literal(len));
             } else {
                 try!(self.read_copy(byte));
@@ -270,8 +270,8 @@ impl<'s, 'd> Decompress<'s, 'd> {
                 //
                 // We also know that dstp and dstp-8 do not overlap from the
                 // check above, justifying the use of copy_nonoverlapping.
-                let mut dstp = self.dst.as_mut_ptr().offset(self.d as isize);
-                let mut srcp = dstp.offset(-(offset as isize));
+                let dstp = self.dst.as_mut_ptr().offset(self.d as isize);
+                let srcp = dstp.offset(-(offset as isize));
                 // We can't do a single 16 byte load/store because src/dst may
                 // overlap with each other. Namely, the second copy here may
                 // copy bytes written in the first copy!

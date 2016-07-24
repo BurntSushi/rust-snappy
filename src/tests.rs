@@ -330,10 +330,3 @@ fn press_cpp(bytes: &[u8]) -> Vec<u8> {
     buf.truncate(n);
     buf
 }
-
-#[cfg(feature = "cpp")]
-fn depress_cpp(bytes: &[u8]) -> Vec<u8> {
-    let mut buf = vec![0; decompress_len(bytes).unwrap()];
-    let m = cpp::decompress(bytes, &mut buf).unwrap();
-    buf
-}

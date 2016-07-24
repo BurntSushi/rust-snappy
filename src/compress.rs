@@ -194,7 +194,7 @@ impl<'s, 'd> Block<'s, 'd> {
         let mut next_hash = table.hash(LE::read_u32(&self.src[self.s..]));
         loop {
             let mut skip = 32;
-            let mut candidate = 0;
+            let mut candidate;
             let mut s_next = self.s;
             loop {
                 self.s = s_next;
@@ -391,7 +391,7 @@ impl<'s, 'd> Block<'s, 'd> {
                 // this efficiently by interpreted x/y as little endian
                 // numbers, which lets us use the number of trailing zeroes
                 // as a proxy for the number of equivalent bits (after an XOR).
-                let mut z = x.to_le() ^ y.to_le();
+                let z = x.to_le() ^ y.to_le();
                 self.s += z.trailing_zeros() as usize / 8;
                 return;
             }
@@ -518,11 +518,6 @@ impl Encoder {
 
 impl<'a> BlockTable<'a> {
     #[inline(always)]
-    fn empty() -> BlockTable<'static> {
-        BlockTable { table: &mut [], shift: 0 }
-    }
-
-    #[inline(always)]
     fn hash(&self, x: u32) -> usize {
         (x.wrapping_mul(0x1E35A7BD) >> self.shift) as usize
     }
@@ -535,15 +530,6 @@ impl<'a> Deref for BlockTable<'a> {
 
 impl<'a> DerefMut for BlockTable<'a> {
     fn deref_mut(&mut self) -> &mut [u16] { self.table }
-}
-
-unsafe fn loadu128(data: *const u8) -> (u64, u64) {
-    let mut x: (u64, u64) = (0, 0);
-    ptr::copy_nonoverlapping(
-        data,
-        &mut x as *mut (u64, u64) as *mut u8,
-        16);
-    x
 }
 
 unsafe fn loadu64(data: *const u8) -> u64 {

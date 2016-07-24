@@ -1,3 +1,9 @@
+/*!
+Snappy compression and decompression, including support for streaming, written
+in Rust.
+*/
+#![deny(missing_docs)]
+
 extern crate byteorder;
 #[cfg(test)]
 extern crate quickcheck;
@@ -227,6 +233,10 @@ enum Tag {
     Literal = 0b00,
     Copy1 = 0b01,
     Copy2 = 0b10,
+    // Compression never actually emits a Copy4 operation and decompression
+    // uses tricks so that we never explicitly do case analysis on the copy
+    // operation type, therefore leading to the fact that we never use Copy4.
+    #[allow(dead_code)]
     Copy4 = 0b11,
 }
 
