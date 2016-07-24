@@ -2,7 +2,7 @@ use quickcheck::{QuickCheck, StdGen};
 #[cfg(feature = "cpp")]
 use snappy_cpp as cpp;
 
-use {Decoder, Error, compress, decompress_len, max_compressed_len};
+use {Encoder, Decoder, Error, decompress_len};
 
 // roundtrip is a macro that compresses the input, then decompresses the result
 // and compares it with the original input. If they are not equal, then the
@@ -314,10 +314,7 @@ fn qc_cmpcpp() {
 // Helper functions.
 
 fn press(bytes: &[u8]) -> Vec<u8> {
-    let mut buf = vec![0; max_compressed_len(bytes.len())];
-    let n = compress(bytes, &mut buf).unwrap();
-    buf.truncate(n);
-    buf
+    Encoder::new().compress_vec(bytes).unwrap()
 }
 
 fn depress(bytes: &[u8]) -> Vec<u8> {
@@ -326,6 +323,8 @@ fn depress(bytes: &[u8]) -> Vec<u8> {
 
 #[cfg(feature = "cpp")]
 fn press_cpp(bytes: &[u8]) -> Vec<u8> {
+    use max_compressed_len;
+
     let mut buf = vec![0; max_compressed_len(bytes.len())];
     let n = cpp::compress(bytes, &mut buf).unwrap();
     buf.truncate(n);

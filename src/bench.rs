@@ -52,12 +52,7 @@ macro_rules! decompress {
                     src.to_owned()
                 };
                 static ref COMPRESSED: Vec<u8> = {
-                    let len = ::snap::max_compressed_len(SRC.len());
-                    let mut compressed = vec![0; len];
-                    let n = ::snap::compress(
-                        SRC.as_slice(), &mut compressed).unwrap();
-                    compressed.truncate(n);
-                    compressed
+                    ::snap::Encoder::new().compress_vec(&*SRC).unwrap()
                 };
             };
 
@@ -71,7 +66,12 @@ macro_rules! decompress {
 }
 
 mod rust {
-    use snap::{Decoder, Result, compress};
+    use snap::{Encoder, Decoder, Result};
+
+    #[inline(always)]
+    fn compress(input: &[u8], output: &mut [u8]) -> Result<usize> {
+        Encoder::new().compress(input, output)
+    }
 
     #[inline(always)]
     fn decompress(input: &[u8], output: &mut [u8]) -> Result<usize> {

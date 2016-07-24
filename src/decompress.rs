@@ -31,7 +31,6 @@ const WORD_MASK: [usize; 5] = [0, 0xFF, 0xFFFF, 0xFFFFFF, 0xFFFFFFFF];
 ///
 /// * An invalid Snappy header was seen.
 /// * The total space required for decompression exceeds `2^32 - 1`.
-#[inline(always)]
 pub fn decompress_len(input: &[u8]) -> Result<usize> {
     if input.is_empty() {
         return Ok(0);
@@ -54,7 +53,6 @@ pub struct Decoder {
 
 impl Decoder {
     /// Return a new decoder that can be used for decompressing bytes.
-    #[inline(always)]
     pub fn new() -> Decoder {
         Decoder { _dummy: () }
     }
@@ -113,7 +111,8 @@ impl Decoder {
     /// `decompress` does.
     pub fn decompress_vec(&mut self, input: &[u8]) -> Result<Vec<u8>> {
         let mut buf = vec![0; try!(decompress_len(input))];
-        try!(self.decompress(input, &mut buf));
+        let n = try!(self.decompress(input, &mut buf));
+        buf.truncate(n);
         Ok(buf)
     }
 }

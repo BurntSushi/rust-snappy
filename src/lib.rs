@@ -1,5 +1,3 @@
-#![allow(dead_code, unused_assignments, unused_mut, unused_variables)]
-
 extern crate byteorder;
 #[cfg(test)]
 extern crate quickcheck;
@@ -13,7 +11,7 @@ use std::fmt;
 use std::io;
 use std::result;
 
-pub use compress::{compress, max_compressed_len};
+pub use compress::{Encoder, max_compressed_len};
 pub use decompress::{Decoder, decompress_len};
 
 const MAX_INPUT_SIZE: u64 = ::std::u32::MAX as u64;

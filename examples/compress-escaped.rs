@@ -16,9 +16,8 @@ fn main() {
         }
         Some(arg) => arg.into_bytes(),
     };
-    let mut compressed = vec![0; snap::max_compressed_len(bytes.len())];
-    let n = snap::compress(&bytes, &mut compressed).unwrap();
-    println!("{}", escape(&compressed[0..n]));
+    let compressed = snap::Encoder::new().compress_vec(&bytes).unwrap();
+    println!("{}", escape(&compressed));
 }
 
 fn escape(bytes: &[u8]) -> String {
