@@ -5,6 +5,9 @@ in Rust.
 #![deny(missing_docs)]
 
 extern crate byteorder;
+extern crate crc;
+#[macro_use]
+extern crate lazy_static;
 #[cfg(test)]
 extern crate quickcheck;
 #[cfg(test)]
@@ -19,11 +22,18 @@ use std::result;
 
 pub use compress::{Encoder, max_compressed_len};
 pub use decompress::{Decoder, decompress_len};
+pub use frame::Writer;
 
+/// We don't permit compressing a block bigger than what can fit in a u32.
 const MAX_INPUT_SIZE: u64 = ::std::u32::MAX as u64;
+
+/// The maximum number of bytes that we process at once. A block is the unit
+/// at which we scan for candidates for compression.
+const MAX_BLOCK_SIZE: usize = 1<<16;
 
 mod compress;
 mod decompress;
+mod frame;
 mod tag;
 #[cfg(test)]
 mod tests;

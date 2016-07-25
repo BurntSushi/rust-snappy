@@ -4,14 +4,10 @@ use std::ptr;
 use byteorder::{ByteOrder, LittleEndian as LE};
 
 use {
-    MAX_INPUT_SIZE,
+    MAX_INPUT_SIZE, MAX_BLOCK_SIZE,
     Error, Result, Tag,
     write_varu64,
 };
-
-/// The maximum number of bytes that we process at once. A block is the unit
-/// at which we scan for candidates for compression.
-const MAX_BLOCK_SIZE: usize = 1<<16;
 
 /// The total number of slots we permit for our hash table of 4 byte repeat
 /// sequences.

@@ -17,8 +17,9 @@ Usage:
 
 Options:
     -d, --decompress   Decompress files (default is compression).
-    -h, --help     Show this help message.
-    -v, --version  Show version.
+    --raw              Use the \"raw\" snappy format (no framing).
+    -h, --help         Show this help message.
+    -v, --version      Show version.
 ";
 
 type Result<T> = result::Result<T, Error>;
@@ -29,6 +30,7 @@ type Error = Box<error::Error + Send + Sync>;
 struct Args {
     arg_file: Vec<String>,
     flag_decompress: bool,
+    flag_raw: bool,
 }
 
 impl Args {
@@ -41,17 +43,19 @@ impl Args {
         }
         let stdin = io::stdin();
         let mut stdin = stdin.lock();
-
-        let mut input = Vec::with_capacity(1 << 16);
-        try!(stdin.read_to_end(&mut input));
-
-        let buf_size = snap::max_compressed_len(input.len());
-        let mut output = vec![0; buf_size];
-        let n = try!(snap::compress(&input, &mut output));
-
         let stdout = io::stdout();
         let mut stdout = stdout.lock();
-        try!(stdout.write_all(&output[..n]));
+
+        if self.flag_raw {
+            let mut src = Vec::with_capacity(1 << 16);
+            try!(stdin.read_to_end(&mut src));
+            let mut dst = vec![0; snap::max_compressed_len(src.len())];
+            let n = try!(snap::Encoder::new().compress(&src, &mut dst));
+            try!(stdout.write_all(&dst[..n]));
+        } else {
+            let mut wtr = snap::Writer::new(stdout);
+            try!(io::copy(&mut stdin, &mut wtr));
+        }
         Ok(())
     }
 }
