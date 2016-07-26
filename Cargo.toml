@@ -21,7 +21,6 @@ name = "bench"
 
 [dependencies]
 byteorder = "0.5.3"
-crc = "1.3"
 lazy_static = "0.2"
 snappy-cpp = { path = "snappy-cpp", version = "0.1", optional = true }
 

@@ -5,7 +5,6 @@ in Rust.
 #![deny(missing_docs)]
 
 extern crate byteorder;
-extern crate crc;
 #[macro_use]
 extern crate lazy_static;
 #[cfg(test)]
@@ -32,6 +31,7 @@ const MAX_INPUT_SIZE: u64 = ::std::u32::MAX as u64;
 const MAX_BLOCK_SIZE: usize = 1<<16;
 
 mod compress;
+mod crc32;
 mod decompress;
 mod frame;
 mod tag;

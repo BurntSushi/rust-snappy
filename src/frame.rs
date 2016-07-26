@@ -5,6 +5,7 @@ use std::io::{self, Write};
 
 use byteorder::{ByteOrder, LittleEndian as LE};
 
+use crc32::crc32c;
 use {
     MAX_BLOCK_SIZE,
     Encoder,
@@ -124,7 +125,7 @@ impl<W: Write> Inner<W> {
                 src = &src[0..MAX_BLOCK_SIZE];
             }
             buf = &buf[src.len()..];
-            let checksum = crc32c(src);
+            let checksum = crc32c_masked(src);
 
             // Compress the buffer. If compression sucked, throw it out and
             // write uncompressed bytes instead. Since our buffer is at most
@@ -145,7 +146,6 @@ impl<W: Write> Inner<W> {
 
             self.chunk_header[0] = chunk_type as u8;
             LE::write_uint(&mut self.chunk_header[1..], chunk_len as u64, 3);
-            // panic!("{} {} {}", src.len(), src[0], checksum);
             LE::write_u32(&mut self.chunk_header[4..], checksum);
             try!(self.w.write_all(&self.chunk_header));
             if chunk_type == ChunkType::Compressed {
@@ -159,9 +159,9 @@ impl<W: Write> Inner<W> {
     }
 }
 
-fn crc32c(buf: &[u8]) -> u32 {
+fn crc32c_masked(buf: &[u8]) -> u32 {
     // TODO(burntsushi): SSE 4.2 has a CRC32 instruction that might be faster.
     // Oh how I long for you, SIMD.
-    let sum = ::crc::crc32::checksum_castagnoli(buf);
+    let sum = crc32c(buf);
     (sum.wrapping_shr(15) | sum.wrapping_shl(17)).wrapping_add(0xA282EAD8)
 }
