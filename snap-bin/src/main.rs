@@ -38,9 +38,6 @@ impl Args {
         if !self.arg_file.is_empty() {
             unimplemented!()
         }
-        if self.flag_decompress {
-            unimplemented!()
-        }
         let stdin = io::stdin();
         let mut stdin = stdin.lock();
         let stdout = io::stdout();
@@ -53,8 +50,13 @@ impl Args {
             let n = try!(snap::Encoder::new().compress(&src, &mut dst));
             try!(stdout.write_all(&dst[..n]));
         } else {
-            let mut wtr = snap::Writer::new(stdout);
-            try!(io::copy(&mut stdin, &mut wtr));
+            if self.flag_decompress {
+                let mut rdr = snap::Reader::new(stdin);
+                try!(io::copy(&mut rdr, &mut stdout));
+            } else {
+                let mut wtr = snap::Writer::new(stdout);
+                try!(io::copy(&mut stdin, &mut wtr));
+            }
         }
         Ok(())
     }

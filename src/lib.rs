@@ -2,7 +2,6 @@
 Snappy compression and decompression, including support for streaming, written
 in Rust.
 */
-#![deny(missing_docs)]
 
 extern crate byteorder;
 #[macro_use]
@@ -21,7 +20,7 @@ use std::result;
 
 pub use compress::{Encoder, max_compressed_len};
 pub use decompress::{Decoder, decompress_len};
-pub use frame::Writer;
+pub use frame::{Reader, Writer};
 
 /// We don't permit compressing a block bigger than what can fit in a u32.
 const MAX_INPUT_SIZE: u64 = ::std::u32::MAX as u64;
@@ -123,6 +122,56 @@ pub enum Error {
         /// non-zero, then the offset must be greater than this position.
         dst_pos: u64,
     },
+    /// This error occurs when a stream header chunk type was expected but got
+    /// a different chunk type.
+    /// This error only occurs when reading a Snappy frame formatted stream.
+    StreamHeader {
+        /// The chunk type byte that was read.
+        byte: u8,
+    },
+    /// This error occurs when the magic stream headers bytes do not match
+    /// what is expected.
+    /// This error only occurs when reading a Snappy frame formatted stream.
+    StreamHeaderMismatch {
+        /// The bytes that were read.
+        bytes: Vec<u8>,
+    },
+    /// This error occurs when an unsupported chunk type is seen.
+    /// This error only occurs when reading a Snappy frame formatted stream.
+    UnsupportedChunkType {
+        /// The chunk type byte that was read.
+        byte: u8,
+    },
+    /// This error occurs when trying to read a chunk with length greater than
+    /// that supported by this library when reading a Snappy frame formatted
+    /// stream.
+    /// This error only occurs when reading a Snappy frame formatted stream.
+    UnsupportedChunkLength {
+        /// The length of the chunk encountered.
+        len: u64,
+        /// True when this error occured while reading the stream header.
+        header: bool,
+    },
+    /// This error occurs when a checksum validity check fails.
+    /// This error only occurs when reading a Snappy frame formatted stream.
+    Checksum {
+        /// The expected checksum read from the stream.
+        expected: u32,
+        /// The computed checksum.
+        got: u32,
+    },
+}
+
+impl From<io::Error> for Error {
+    fn from(err: io::Error) -> Error {
+        Error::Io(err)
+    }
+}
+
+impl From<Error> for io::Error {
+    fn from(err: Error) -> io::Error {
+        io::Error::new(io::ErrorKind::Other, err)
+    }
 }
 
 impl Eq for Error {}
@@ -164,6 +213,25 @@ impl PartialEq for Error {
              &Offset { offset: offset2, dst_pos: dst_pos2 }) => {
                 (offset1, dst_pos1) == (offset2, dst_pos2)
             }
+            (&StreamHeader { byte: byte1 }, &StreamHeader { byte: byte2 }) => {
+                byte1 == byte2
+            }
+            (&StreamHeaderMismatch { bytes: ref bytes1 },
+             &StreamHeaderMismatch { bytes: ref bytes2 }) => {
+                bytes1 == bytes2
+            }
+            (&UnsupportedChunkType { byte: byte1 },
+             &UnsupportedChunkType { byte: byte2 }) => {
+                byte1 == byte2
+            }
+            (&UnsupportedChunkLength { len: len1, header: header1 },
+             &UnsupportedChunkLength { len: len2, header: header2 }) => {
+                (len1, header1) == (len2, header2)
+            }
+            (&Checksum { expected: e1, got: g1 },
+             &Checksum { expected: e2, got: g2 }) => {
+                (e1, g1) == (e2, g2)
+            }
             _ => false,
         }
     }
@@ -184,6 +252,22 @@ impl error::Error for Error {
             Error::CopyWrite { .. } => "snappy: corrupt input \
                                         (bad copy write)",
             Error::Offset { .. } => "snappy: corrupt input (bad offset)",
+            Error::StreamHeader { .. } => {
+                "snappy: corrupt input (missing stream header)"
+            }
+            Error::StreamHeaderMismatch { .. } => {
+                "snappy: corrupt input (stream header mismatch)"
+            }
+            Error::UnsupportedChunkType { .. } => {
+                "snappy: corrupt input (unsupported chunk type)"
+            }
+            Error::UnsupportedChunkLength { header: false, .. } => {
+                "snappy: corrupt input (unsupported chunk length)"
+            }
+            Error::UnsupportedChunkLength { header: true, .. } => {
+                "snappy: corrupt input (invalid stream header)"
+            }
+            Error::Checksum { .. } => "snappy: corrupt input (bad checksum)",
         }
     }
 
@@ -235,8 +319,37 @@ impl fmt::Display for Error {
                 write!(f, "snappy: corrupt input (expected valid offset but \
                            got offset {}; dst position: {})", offset, dst_pos)
             }
+            Error::StreamHeader { byte } => {
+                write!(f, "snappy: corrupt input (expected stream header but \
+                           got unexpected chunk type byte {})", byte)
+            }
+            Error::StreamHeaderMismatch { ref bytes } => {
+                write!(f, "snappy: corrupt input (expected sNaPpY stream \
+                           header but got {})", escape(&**bytes))
+            }
+            Error::UnsupportedChunkType { byte } => {
+                write!(f, "snappy: corrupt input (unsupported chunk type: {})",
+                       byte)
+            }
+            Error::UnsupportedChunkLength { len, header: false } => {
+                write!(f, "snappy: corrupt input \
+                           (unsupported chunk length: {})", len)
+            }
+            Error::UnsupportedChunkLength { len, header: true } => {
+                write!(f, "snappy: corrupt input \
+                           (invalid stream header length: {})", len)
+            }
+            Error::Checksum { expected, got } => {
+                write!(f, "snappy: corrupt input (bad checksum; \
+                           expected: {}, got: {})", expected, got)
+            }
         }
     }
+}
+
+fn escape(bytes: &[u8]) -> String {
+    use std::ascii::escape_default;
+    bytes.iter().flat_map(|&b| escape_default(b)).map(|b| b as char).collect()
 }
 
 enum Tag {
