@@ -25,7 +25,7 @@ macro_rules! compress {
                     src.to_owned()
                 };
             };
-            let mut dst = vec![0; ::snap::max_compressed_len(SRC.len())];
+            let mut dst = vec![0; ::snap::max_compress_len(SRC.len())];
             b.bytes = SRC.len() as u64;
             b.iter(|| {
                 $comp(SRC.as_slice(), &mut dst).unwrap()

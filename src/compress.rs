@@ -3,11 +3,9 @@ use std::ptr;
 
 use byteorder::{ByteOrder, LittleEndian as LE};
 
-use {
-    MAX_INPUT_SIZE, MAX_BLOCK_SIZE,
-    Error, Result, Tag,
-    write_varu64,
-};
+use error::{Error, Result};
+use varint::write_varu64;
+use {MAX_INPUT_SIZE, MAX_BLOCK_SIZE};
 
 /// The total number of slots we permit for our hash table of 4 byte repeat
 /// sequences.
@@ -26,11 +24,23 @@ const INPUT_MARGIN: usize = 16 - 1;
 /// Anything smaller than this gets emitted as a literal.
 const MIN_NON_LITERAL_BLOCK_SIZE: usize = 1 + 1 + INPUT_MARGIN;
 
+/// Nice names for the various Snappy tags.
+enum Tag {
+    Literal = 0b00,
+    Copy1 = 0b01,
+    Copy2 = 0b10,
+    // Compression never actually emits a Copy4 operation and decompression
+    // uses tricks so that we never explicitly do case analysis on the copy
+    // operation type, therefore leading to the fact that we never use Copy4.
+    #[allow(dead_code)]
+    Copy4 = 0b11,
+}
+
 /// Returns the maximum compressed size given the uncompressed size.
 ///
 /// If the uncompressed size exceeds the maximum allowable size then this
 /// returns 0.
-pub fn max_compressed_len(input_len: usize) -> usize {
+pub fn max_compress_len(input_len: usize) -> usize {
     let input_len = input_len as u64;
     if input_len > MAX_INPUT_SIZE {
         return 0;
@@ -71,7 +81,7 @@ impl Encoder {
     /// `input` can be any arbitrary sequence of bytes.
     ///
     /// `output` must be large enough to hold the maximum possible compressed
-    /// size of `input`, which can be computed using `max_compressed_len`.
+    /// size of `input`, which can be computed using `max_compress_len`.
     ///
     /// On success, this returns the number of bytes written to `output`.
     ///
@@ -86,7 +96,7 @@ impl Encoder {
         mut input: &[u8],
         output: &mut [u8],
     ) -> Result<usize> {
-        match max_compressed_len(input.len()) {
+        match max_compress_len(input.len()) {
             0 => {
                 return Err(Error::TooBig {
                     given: input.len() as u64,
@@ -147,7 +157,7 @@ impl Encoder {
     /// This method returns an error under the same circumstances that
     /// `compress` does.
     pub fn compress_vec(&mut self, input: &[u8]) -> Result<Vec<u8>> {
-        let mut buf = vec![0; max_compressed_len(input.len())];
+        let mut buf = vec![0; max_compress_len(input.len())];
         let n = try!(self.compress(input, &mut buf));
         buf.truncate(n);
         Ok(buf)

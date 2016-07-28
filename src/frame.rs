@@ -3,16 +3,15 @@ use std::io::{self, Read, Write};
 
 use byteorder::{ReadBytesExt, ByteOrder, LittleEndian as LE};
 
+use compress::{Encoder, max_compress_len};
 use crc32::crc32c;
-use {
-    MAX_BLOCK_SIZE,
-    Decoder, Encoder, Error,
-    decompress_len, max_compressed_len,
-};
+use decompress::{Decoder, decompress_len};
+use error::{Error, IntoInnerError, new_into_inner_error};
+use MAX_BLOCK_SIZE;
 
 lazy_static! {
-    static ref MAX_COMPRESSED_BLOCK_SIZE: usize =
-        max_compressed_len(MAX_BLOCK_SIZE);
+    static ref MAX_COMPRESS_BLOCK_SIZE: usize =
+        max_compress_len(MAX_BLOCK_SIZE);
 }
 
 // The special magic string that starts any stream.
@@ -53,7 +52,7 @@ impl ChunkType {
 /// This `Writer` wraps any other writer that implements `io::Write`. Bytes
 /// written to this writer are compressed using the
 /// [Snappy frame format](https://github.com/google/snappy/blob/master/framing_format.txt)
-/// (file extension `sz`, MIME type `application/x-snappy-framed).
+/// (file extension `sz`, MIME type `application/x-snappy-framed`).
 ///
 /// Writes are buffered automatically, so there's no need to wrap the given
 /// writer in a `std::io::BufWriter`.
@@ -62,7 +61,10 @@ impl ChunkType {
 /// occurs, it is ignored.
 pub struct Writer<W: Write> {
     /// Our main internal state, split out for borrowck reasons (happily paid).
-    inner: Inner<W>,
+    ///
+    /// Also, it's an `Option` so we can move out of it even though `Writer`
+    /// impls `Drop`.
+    inner: Option<Inner<W>>,
     /// Our buffer of uncompressed bytes. This isn't part of `inner` because
     /// we may write bytes directly from the caller if the given buffer was
     /// big enough. As a result, the main `write` implementation needs to
@@ -92,23 +94,36 @@ impl<W: Write> Writer<W> {
     /// Create a new writer for streaming Snappy compression.
     pub fn new(wtr: W) -> Writer<W> {
         Writer {
-            inner: Inner {
+            inner: Some(Inner {
                 w: wtr,
                 enc: Encoder::new(),
-                dst: vec![0; *MAX_COMPRESSED_BLOCK_SIZE],
+                dst: vec![0; *MAX_COMPRESS_BLOCK_SIZE],
                 wrote_stream_ident: false,
                 chunk_header: [0; 8],
-            },
+            }),
             src: Vec::with_capacity(MAX_BLOCK_SIZE),
+        }
+    }
+
+    /// Returns the underlying stream, consuming and flushing this writer.
+    ///
+    /// If flushing the writer caused an error, then an `IntoInnerError` is
+    /// returned, which contains both the writer and the original writer.
+    pub fn into_inner(mut self) -> Result<W, IntoInnerError<Writer<W>>> {
+        match self.flush() {
+            Ok(()) => Ok(self.inner.take().unwrap().w),
+            Err(err) => Err(new_into_inner_error(self, err)),
         }
     }
 }
 
 impl<W: Write> Drop for Writer<W> {
     fn drop(&mut self) {
-        // Ignore errors because we can't conceivably return an error and
-        // panicing in a dtor is bad juju.
-        let _ = self.flush();
+        if self.inner.is_some() {
+            // Ignore errors because we can't conceivably return an error and
+            // panicing in a dtor is bad juju.
+            let _ = self.flush();
+        }
     }
 }
 
@@ -126,7 +141,7 @@ impl<W: Write> Write for Writer<W> {
                 } else if self.src.is_empty() {
                     // If buf is bigger than our entire buffer then avoid
                     // the indirection and write the buffer directly.
-                    try!(self.inner.write(buf))
+                    try!(self.inner.as_mut().unwrap().write(buf))
                 } else {
                     self.src.extend_from_slice(&buf[0..free]);
                     try!(self.flush());
@@ -149,7 +164,7 @@ impl<W: Write> Write for Writer<W> {
         if self.src.is_empty() {
             return Ok(());
         }
-        try!(self.inner.write(&self.src));
+        try!(self.inner.as_mut().unwrap().write(&self.src));
         self.src.truncate(0);
         Ok(())
     }
@@ -161,7 +176,6 @@ impl<W: Write> Inner<W> {
         if !self.wrote_stream_ident {
             self.wrote_stream_ident = true;
             try!(self.w.write_all(STREAM_IDENTIFIER));
-            total += STREAM_IDENTIFIER.len();
         }
         while !buf.is_empty() {
             // Advance buf and get our block.
@@ -175,7 +189,7 @@ impl<W: Write> Inner<W> {
             // Compress the buffer. If compression sucked, throw it out and
             // write uncompressed bytes instead. Since our buffer is at most
             // MAX_BLOCK_SIZE and our dst buffer has size
-            // max_compressed_len(MAX_BLOCK_SIZE), we have enough space.
+            // max_compress_len(MAX_BLOCK_SIZE), we have enough space.
             let compress_len = try!(self.enc.compress(src, &mut self.dst));
             let (chunk_type, chunk_len) =
                 // We add 4 to the chunk_len because of the checksum.
@@ -205,7 +219,7 @@ impl<W: Write> Inner<W> {
 /// This `Reader` wraps any other reader that implements `io::Read`. Bytes
 /// read from this reader are decompressed using the
 /// [Snappy frame format](https://github.com/google/snappy/blob/master/framing_format.txt)
-/// (file extension `sz`, MIME type `application/x-snappy-framed).
+/// (file extension `sz`, MIME type `application/x-snappy-framed`).
 ///
 /// This reader can potentially make many small reads from the underlying
 /// stream depending on its format, therefore, passing in a buffered reader
@@ -235,7 +249,7 @@ impl<R: Read> Reader<R> {
         Reader {
             r: rdr,
             dec: Decoder::new(),
-            src: vec![0; *MAX_COMPRESSED_BLOCK_SIZE],
+            src: vec![0; *MAX_COMPRESS_BLOCK_SIZE],
             dst: vec![0; MAX_BLOCK_SIZE],
             dsts: 0,
             dste: 0,

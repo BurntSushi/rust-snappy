@@ -2,12 +2,10 @@ use std::ptr;
 
 use byteorder::{ByteOrder, LittleEndian as LE};
 
+use error::{Error, Result};
 use tag;
-use {
-    MAX_INPUT_SIZE,
-    Error, Result,
-    read_varu64,
-};
+use varint::read_varu64;
+use MAX_INPUT_SIZE;
 
 /// A lookup table for quickly computing the various attributes derived from a
 /// tag byte.
@@ -38,7 +36,7 @@ pub fn decompress_len(input: &[u8]) -> Result<usize> {
     Ok(try!(Header::read(input)).decompress_len)
 }
 
-/// Decoder is a raw low level decoder for decompressing bytes.
+/// Decoder is a raw decoder for decompressing bytes in the Snappy format.
 ///
 /// This decoder does not use the Snappy frame format and simply decompresses
 /// the given bytes as if it were returned from `Encoder`.

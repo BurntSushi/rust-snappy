@@ -46,7 +46,7 @@ impl Args {
         if self.flag_raw {
             let mut src = Vec::with_capacity(1 << 16);
             try!(stdin.read_to_end(&mut src));
-            let mut dst = vec![0; snap::max_compressed_len(src.len())];
+            let mut dst = vec![0; snap::max_compress_len(src.len())];
             let n = try!(snap::Encoder::new().compress(&src, &mut dst));
             try!(stdout.write_all(&dst[..n]));
         } else {

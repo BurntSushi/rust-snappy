@@ -1,4 +1,4 @@
-use quickcheck::{QuickCheck, StdGen};
+use quickcheck::{QuickCheck, StdGen, TestResult};
 #[cfg(feature = "cpp")]
 use snappy_cpp as cpp;
 
@@ -52,7 +52,8 @@ decompressed (len == {:?})
 
 // testtrip is a macro that defines a test that compresses the input, then
 // decompresses the result and compares it with the original input. If they are
-// not equal, then the test fails.
+// not equal, then the test fails. This test is performed both on the raw
+// Snappy format and the framed Snappy format.
 //
 // If tests are compiled with the cpp feature, then this also tests that the
 // C++ library compresses to the same bytes that the Rust library does.
@@ -60,9 +61,16 @@ macro_rules! testtrip {
     ($name:ident, $data:expr) => {
         mod $name {
             #[test]
-            fn roundtrip() {
+            fn roundtrip_raw() {
                 use super::{depress, press};
                 roundtrip!($data);
+            }
+
+            #[test]
+            fn roundtrip_frame() {
+                use super::{frame_depress, frame_press};
+                let d = &$data[..];
+                assert_eq!(d, &*frame_depress(&frame_press(d)));
             }
 
             #[test]
@@ -125,6 +133,8 @@ testtrip!(data_txt4, include_bytes!("../data/plrabn12.txt"));
 testtrip!(data_pb, include_bytes!("../data/geo.protodata"));
 testtrip!(data_gaviota, include_bytes!("../data/kppkn.gtb"));
 testtrip!(data_golden, include_bytes!("../data/Mark.Twain-Tom.Sawyer.txt"));
+
+// Do it again, with the Snappy frame format.
 
 // Roundtrip the golden data, starting with the compressed bytes.
 #[test]
@@ -300,6 +310,20 @@ fn qc_roundtrip() {
 }
 
 #[test]
+fn qc_roundtrip_stream() {
+    fn p(bytes: Vec<u8>) -> TestResult {
+        if bytes.is_empty() {
+            return TestResult::discard();
+        }
+        TestResult::from_bool(frame_depress(&frame_press(&bytes)) == bytes)
+    }
+    QuickCheck::new()
+        .gen(StdGen::new(::rand::thread_rng(), 10_000))
+        .tests(1_000)
+        .quickcheck(p as fn(_) -> _);
+}
+
+#[test]
 #[cfg(feature = "cpp")]
 fn qc_cmpcpp() {
     fn p(bytes: Vec<u8>) -> bool {
@@ -321,11 +345,29 @@ fn depress(bytes: &[u8]) -> Vec<u8> {
     Decoder::new().decompress_vec(bytes).unwrap()
 }
 
+fn frame_press(bytes: &[u8]) -> Vec<u8> {
+    use std::io::Write;
+    use frame::Writer;
+
+    let mut wtr = Writer::new(vec![]);
+    wtr.write_all(bytes).unwrap();
+    wtr.into_inner().unwrap()
+}
+
+fn frame_depress(bytes: &[u8]) -> Vec<u8> {
+    use std::io::Read;
+    use frame::Reader;
+
+    let mut buf = vec![];
+    Reader::new(bytes).read_to_end(&mut buf).unwrap();
+    buf
+}
+
 #[cfg(feature = "cpp")]
 fn press_cpp(bytes: &[u8]) -> Vec<u8> {
-    use max_compressed_len;
+    use compress::max_compress_len;
 
-    let mut buf = vec![0; max_compressed_len(bytes.len())];
+    let mut buf = vec![0; max_compress_len(bytes.len())];
     let n = cpp::compress(bytes, &mut buf).unwrap();
     buf.truncate(n);
     buf
