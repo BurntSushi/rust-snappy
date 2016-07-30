@@ -88,38 +88,38 @@ library in your `LD_LIBRARY_PATH` (or equivalent).
 
 ### Performance
 
-The performance of this implementation should roughly match the performance
-of the C++ implementation. Below are the results of the microbenchmarks (as
-defined in the C++ library):
+The performance of this implementation should roughly match the performance of
+the C++ implementation on x86_64. Below are the results of the microbenchmarks
+(as defined in the C++ library):
 
 ```
-name             cpp ns/iter           rust ns/iter          diff ns/iter   diff %
-uflat00_html     49,130 (2,084 MB/s)   48,708 (2,102 MB/s)           -422   -0.86%
-uflat01_urls     519,112 (1,352 MB/s)  500,274 (1,403 MB/s)       -18,838   -3.63%
-uflat02_jpg      5,219 (23,585 MB/s)   5,734 (21,467 MB/s)            515    9.87%
-uflat03_jpg_200  147 (1,360 MB/s)      136 (1,470 MB/s)               -11   -7.48%
-uflat04_pdf      7,987 (12,820 MB/s)   7,138 (14,345 MB/s)           -849  -10.63%
-uflat05_html4    207,788 (1,971 MB/s)  201,960 (2,028 MB/s)        -5,828   -2.80%
-uflat06_txt1     161,859 (939 MB/s)    161,453 (942 MB/s)            -406   -0.25%
-uflat07_txt2     150,726 (830 MB/s)    143,303 (873 MB/s)          -7,423   -4.92%
-uflat08_txt3     436,503 (977 MB/s)    426,687 (1,000 MB/s)        -9,816   -2.25%
-uflat09_txt4     635,595 (758 MB/s)    607,344 (793 MB/s)         -28,251   -4.44%
-uflat10_pb       48,102 (2,465 MB/s)   43,647 (2,716 MB/s)         -4,455   -9.26%
-uflat11_gaviota  168,227 (1,095 MB/s)  172,169 (1,070 MB/s)         3,942    2.34%
-zflat00_html     115,532 (886 MB/s)    110,474 (926 MB/s)          -5,058   -4.38%
-zflat01_urls     1,518,622 (462 MB/s)  1,469,408 (477 MB/s)       -49,214   -3.24%
-zflat02_jpg      9,481 (12,983 MB/s)   9,263 (13,288 MB/s)           -218   -2.30%
-zflat03_jpg_200  366 (546 MB/s)        296 (675 MB/s)                 -70  -19.13%
-zflat04_pdf      13,212 (7,750 MB/s)   12,503 (8,190 MB/s)           -709   -5.37%
-zflat05_html4    475,279 (861 MB/s)    467,080 (876 MB/s)          -8,199   -1.73%
-zflat06_txt1     490,221 (310 MB/s)    456,371 (333 MB/s)         -33,850   -6.91%
-zflat07_txt2     436,043 (287 MB/s)    493,155 (253 MB/s)          57,112   13.10%
-zflat08_txt3     1,243,148 (343 MB/s)  1,216,920 (350 MB/s)       -26,228   -2.11%
-zflat09_txt4     1,699,077 (283 MB/s)  1,670,186 (288 MB/s)       -28,891   -1.70%
-zflat10_pb       103,676 (1,143 MB/s)  100,874 (1,175 MB/s)        -2,802   -2.70%
-zflat11_gaviota  363,727 (506 MB/s)    333,110 (553 MB/s)         -30,617   -8.42%
+name             cpp ns/iter           rust ns/iter         diff ns/iter   diff %
+uflat00_html     45,097 (2270 MB/s)    44,372 (2307 MB/s)           -725   -1.61%
+uflat01_urls     496,988 (1412 MB/s)   475,693 (1475 MB/s)       -21,295   -4.28%
+uflat02_jpg      4,800 (25644 MB/s)    4,935 (24942 MB/s)            135    2.81%
+uflat03_jpg_200  144 (1388 MB/s)       127 (1574 MB/s)               -17  -11.81%
+uflat04_pdf      6,699 (15285 MB/s)    6,586 (15548 MB/s)           -113   -1.69%
+uflat05_html4    187,082 (2189 MB/s)   184,941 (2214 MB/s)        -2,141   -1.14%
+uflat06_txt1     152,245 (998 MB/s)    152,185 (999 MB/s)            -60   -0.04%
+uflat07_txt2     134,235 (932 MB/s)    135,057 (926 MB/s)            822    0.61%
+uflat08_txt3     407,234 (1047 MB/s)   418,990 (1018 MB/s)        11,756    2.89%
+uflat09_txt4     563,671 (854 MB/s)    580,281 (830 MB/s)         16,610    2.95%
+uflat10_pb       42,207 (2809 MB/s)    41,624 (2849 MB/s)           -583   -1.38%
+uflat11_gaviota  159,276 (1157 MB/s)   153,006 (1204 MB/s)        -6,270   -3.94%
+zflat00_html     108,043 (947 MB/s)    104,306 (981 MB/s)         -3,737   -3.46%
+zflat01_urls     1,416,005 (495 MB/s)  1,305,846 (537 MB/s)     -110,159   -7.78%
+zflat02_jpg      8,260 (14902 MB/s)    8,372 (14702 MB/s)            112    1.36%
+zflat03_jpg_200  329 (607 MB/s)        247 (809 MB/s)                -82  -24.92%
+zflat04_pdf      12,279 (8339 MB/s)    11,351 (9021 MB/s)           -928   -7.56%
+zflat05_html4    465,677 (879 MB/s)    448,619 (913 MB/s)        -17,058   -3.66%
+zflat06_txt1     461,344 (329 MB/s)    442,385 (343 MB/s)        -18,959   -4.11%
+zflat07_txt2     409,416 (305 MB/s)    393,293 (318 MB/s)        -16,123   -3.94%
+zflat08_txt3     1,194,880 (357 MB/s)  1,178,756 (362 MB/s)      -16,124   -1.35%
+zflat09_txt4     1,638,914 (294 MB/s)  1,614,618 (298 MB/s)      -24,296   -1.48%
+zflat10_pb       100,514 (1179 MB/s)   97,523 (1216 MB/s)         -2,991   -2.98%
+zflat11_gaviota  358,002 (514 MB/s)    326,086 (565 MB/s)        -31,916   -8.92%
 ```
 
 Notes: These benchmarks were run with Snappy/C++ on commit `32d6d7`. Both the
 C++ and Rust benchmarks were run with the same benchmark harness. Benchmarks
-were run on an Intel i7-3520M.
+were run on an Intel i7-6900K.
