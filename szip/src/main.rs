@@ -15,8 +15,8 @@ use filetime::{FileTime, set_file_times};
 
 const USAGE: &'static str = "
 szip works similarly to gzip. It takes files as parameters, compresses them to
-a new file with a .sz extension, and removes the original. File ccess and
-amodification times are preserved.
+a new file with a .sz extension, and removes the original. File access and
+modification times are preserved.
 
 Alternatively, data can be sent on stdin and its compressed form will be sent
 to stdout.
@@ -25,7 +25,8 @@ The -d (short for --decompress) flag changes the mode from compression to
 decompression.
 
 The --raw flag can be used for compressing/decompressing the raw Snappy format.
-Note that this requires reading the entire input/output into memory.
+Note that this requires reading the entire input/output into memory. In
+general, you shouldn't use this flag unless you have a specific need to.
 
 Usage:
     snappy [options] [<file> ...]
@@ -39,7 +40,7 @@ Options:
     -h, --help         Show this help message.
     -k, --keep         Keep (don't delete) input files during (de)compression.
     -r, --raw          Use the \"raw\" snappy format (no framing).
-    -v, --version      Show version.
+    --version      Show version.
 ";
 
 type Result<T> = result::Result<T, Error>;
@@ -65,9 +66,30 @@ struct Args {
     flag_raw: bool,
 }
 
+fn main() {
+    let args: Args =
+        Docopt::new(USAGE)
+        .and_then(|d| d.version(Some(version())).decode())
+        .unwrap_or_else(|e| e.exit());
+    if let Err(err) = args.run() {
+        errln!("{}", err);
+        process::exit(1);
+    }
+}
+
 impl Args {
     fn run(&self) -> Result<()> {
-        if !self.arg_file.is_empty() {
+        if self.arg_file.is_empty() {
+            let stdin = io::stdin();
+            let mut stdin = stdin.lock();
+            let stdout = io::stdout();
+            let mut stdout = stdout.lock();
+            if self.flag_decompress {
+                try!(self.decompress(&mut stdin, &mut stdout));
+            } else {
+                try!(self.compress(&mut stdin, &mut stdout));
+            }
+        } else {
             for f in &self.arg_file {
                 let r =
                     if self.flag_decompress {
@@ -78,27 +100,6 @@ impl Args {
                 if let Err(err) = r {
                     errln!("{}: {}", f, err);
                 }
-            }
-            return Ok(());
-        }
-        let stdin = io::stdin();
-        let mut stdin = stdin.lock();
-        let stdout = io::stdout();
-        let mut stdout = stdout.lock();
-
-        if self.flag_raw {
-            let mut src = Vec::with_capacity(1 << 16);
-            try!(stdin.read_to_end(&mut src));
-            let mut dst = vec![0; snap::max_compress_len(src.len())];
-            let n = try!(snap::Encoder::new().compress(&src, &mut dst));
-            try!(stdout.write_all(&dst[..n]));
-        } else {
-            if self.flag_decompress {
-                let mut rdr = snap::Reader::new(stdin);
-                try!(io::copy(&mut rdr, &mut stdout));
-            } else {
-                let mut wtr = snap::Writer::new(stdout);
-                try!(io::copy(&mut stdin, &mut wtr));
             }
         }
         Ok(())
@@ -204,11 +205,15 @@ fn copy_atime_mtime<P, Q>(
     Ok(())
 }
 
-fn main() {
-    let args: Args = Docopt::new(USAGE).and_then(|d| d.decode())
-                                       .unwrap_or_else(|e| e.exit());
-    if let Err(err) = args.run() {
-        errln!("{}", err);
-        process::exit(1);
+fn version() -> String {
+    let (maj, min, pat) = (
+        option_env!("CARGO_PKG_VERSION_MAJOR"),
+        option_env!("CARGO_PKG_VERSION_MINOR"),
+        option_env!("CARGO_PKG_VERSION_PATCH"),
+    );
+    match (maj, min, pat) {
+        (Some(maj), Some(min), Some(pat)) =>
+            format!("{}.{}.{}", maj, min, pat),
+        _ => "".to_owned(),
     }
 }
