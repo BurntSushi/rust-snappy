@@ -1,5 +1,5 @@
 [package]
-name = "snap-bin"
+name = "szip"
 version = "0.1.0"
 authors = ["Andrew Gallant <jamslam@gmail.com>"]
 description = """
@@ -12,7 +12,7 @@ keywords = ["snappy", "compress", "compression", "decompress", "decompression"]
 license = "Unlicense/MIT"
 
 [[bin]]
-name = "snappy"
+name = "szip"
 
 [dependencies]
 docopt = "0.6"
