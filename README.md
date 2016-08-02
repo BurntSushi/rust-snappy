@@ -8,8 +8,8 @@ This implementation is ported from both the
 and the
 [Go implementation](https://github.com/golang/snappy).
 
-[![Linux build status](https://api.travis-ci.org/BurntSushi/snap.png)](https://travis-ci.org/BurntSushi/snap)
-[![Windows build status](https://ci.appveyor.com/api/projects/status/github/BurntSushi/snap?svg=true)](https://ci.appveyor.com/project/BurntSushi/snap)
+[![Linux build status](https://api.travis-ci.org/BurntSushi/rust-snappy.png)](https://travis-ci.org/BurntSushi/rust-snappy)
+[![Windows build status](https://ci.appveyor.com/api/projects/status/github/BurntSushi/rust-snappy?svg=true)](https://ci.appveyor.com/project/BurntSushi/rust-snappy)
 [![](http://meritbadge.herokuapp.com/snap)](https://crates.io/crates/snap)
 
 Dual-licensed under MIT or the [UNLICENSE](http://unlicense.org).
