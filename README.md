@@ -136,6 +136,37 @@ Notes: These benchmarks were run with Snappy/C++ on commit `32d6d7` with debug
 assertions disabled. Both the C++ and Rust benchmarks were run with the same
 benchmark harness. Benchmarks were run on an Intel i7-6900K.
 
+For reference, here are the benchmarks run on the same machine from the Go
+implementation of Snappy (which has a hand rolled implementation in Assembly).
+Note that these were run using Go's microbenchmark tool.
+
+```
+Benchmark_UFlat0           20000             50325 ns/op        2034.75 MB/s
+Benchmark_UFlat1            3000            518867 ns/op        1353.11 MB/s
+Benchmark_UFlat2          300000              5934 ns/op        20741.56 MB/s
+Benchmark_UFlat3        20000000               113 ns/op        1766.48 MB/s
+Benchmark_UFlat4          200000              7124 ns/op        14372.85 MB/s
+Benchmark_UFlat5           10000            218680 ns/op        1873.05 MB/s
+Benchmark_UFlat6           10000            193376 ns/op         786.49 MB/s
+Benchmark_UFlat7           10000            165456 ns/op         756.57 MB/s
+Benchmark_UFlat8            3000            505216 ns/op         844.69 MB/s
+Benchmark_UFlat9            2000            678399 ns/op         710.29 MB/s
+Benchmark_UFlat10          30000             42303 ns/op        2803.29 MB/s
+Benchmark_UFlat11          10000            186899 ns/op         986.20 MB/s
+Benchmark_ZFlat0           10000            102311 ns/op        1000.86 MB/s
+Benchmark_ZFlat1            1000           1336789 ns/op         525.20 MB/s
+Benchmark_ZFlat2          200000              8480 ns/op        14515.18 MB/s
+Benchmark_ZFlat3         5000000               267 ns/op         746.44 MB/s
+Benchmark_ZFlat4          200000             11749 ns/op        8715.03 MB/s
+Benchmark_ZFlat5            3000            436820 ns/op         937.68 MB/s
+Benchmark_ZFlat6            3000            422042 ns/op         360.36 MB/s
+Benchmark_ZFlat7            5000            376019 ns/op         332.91 MB/s
+Benchmark_ZFlat8            2000           1133338 ns/op         376.55 MB/s
+Benchmark_ZFlat9            1000           1559530 ns/op         308.98 MB/s
+Benchmark_ZFlat10          20000             91263 ns/op        1299.41 MB/s
+Benchmark_ZFlat11           5000            323804 ns/op         569.23 MB/s
+```
+
 ### Comparison with other Snappy crates
 
 * `snappy` - These are bindings to the C++ library. No support for the Snappy
