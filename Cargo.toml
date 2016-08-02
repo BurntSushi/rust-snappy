@@ -7,8 +7,8 @@ A pure Rust implementation of the Snappy compression algorithm. Includes
 streaming compression and decompression.
 """
 documentation = "http://burntsushi.net/rustdoc/snap/"
-homepage = "https://github.com/BurntSushi/snap"
-repository = "https://github.com/BurntSushi/snap"
+homepage = "https://github.com/BurntSushi/rust-snappy"
+repository = "https://github.com/BurntSushi/rust-snappy"
 readme = "README.md"
 keywords = ["snappy", "compress", "compression", "decompress", "decompression"]
 license = "BSD-3-Clause"
