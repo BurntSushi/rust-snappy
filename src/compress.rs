@@ -344,7 +344,7 @@ impl<'s, 'd> Block<'s, 'd> {
         }
         // If we can squeeze the last copy into a copy 1 operation, do it.
         if len <= 11 && offset <= 2047 {
-            self.dst[self.d + 0] =
+            self.dst[self.d] =
                 (((offset >> 8) as u8) << 5)
                 | (((len - 4) as u8) << 2)
                 | (Tag::Copy1 as u8);
@@ -362,7 +362,7 @@ impl<'s, 'd> Block<'s, 'd> {
     fn emit_copy2(&mut self, offset: usize, len: usize) {
         debug_assert!(1 <= offset && offset <= 65535);
         debug_assert!(1 <= len && len <= 64);
-        self.dst[self.d + 0] = (((len - 1) as u8) << 2) | (Tag::Copy2 as u8);
+        self.dst[self.d] = (((len - 1) as u8) << 2) | (Tag::Copy2 as u8);
         LE::write_u16(&mut self.dst[self.d + 1..], offset as u16);
         self.d += 3;
     }
@@ -434,7 +434,7 @@ impl<'s, 'd> Block<'s, 'd> {
         let len = lit_end - lit_start;
         let n = len.checked_sub(1).unwrap();
         if n <= 59 {
-            self.dst[self.d + 0] = ((n as u8) << 2) | (Tag::Literal as u8);
+            self.dst[self.d] = ((n as u8) << 2) | (Tag::Literal as u8);
             self.d += 1;
             if len <= 16 && lit_start + 16 <= self.src.len() {
                 // SAFETY: lit_start is equivalent to self.next_emit, which
@@ -452,11 +452,11 @@ impl<'s, 'd> Block<'s, 'd> {
                 return;
             }
         } else if n < 256 {
-            self.dst[self.d + 0] = (60 << 2) | (Tag::Literal as u8);
+            self.dst[self.d] = (60 << 2) | (Tag::Literal as u8);
             self.dst[self.d + 1] = n as u8;
             self.d += 2;
         } else {
-            self.dst[self.d + 0] = (61 << 2) | (Tag::Literal as u8);
+            self.dst[self.d] = (61 << 2) | (Tag::Literal as u8);
             LE::write_u16(&mut self.dst[self.d + 1..], n as u16);
             self.d += 3;
         }
@@ -474,9 +474,9 @@ impl<'s, 'd> Block<'s, 'd> {
     }
 }
 
-/// BlockTable is a map from 4 byte sequences to positions of their most recent
-/// occurrence in a block. In particular, this table lets us quickly find
-/// candidates for compression.
+/// `BlockTable` is a map from 4 byte sequences to positions of their most
+/// recent occurrence in a block. In particular, this table lets us quickly
+/// find candidates for compression.
 ///
 /// We expose the `hash` method so that callers can be fastidious about the
 /// number of times a hash is computed.
