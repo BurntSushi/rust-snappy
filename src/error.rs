@@ -68,8 +68,12 @@ impl<W> fmt::Debug for IntoInnerError<W> {
 /// Error describes all the possible errors that may occur during Snappy
 /// compression or decompression.
 ///
-/// Note that while any of the errors defined may occur during decompression,
-/// only the `TooBig` and `BufferTooSmall` errors may occur during compression.
+/// Note that it's unlikely that you'll need to care about the specific error
+/// reported since all of them indicate a corrupt Snappy data or a limitation
+/// that cannot be worked around. Therefore,
+/// `From<snap::Error> for std::io::Error` is provided so that any Snappy
+/// errors will be converted to a `std::io::Error` automatically when using
+/// `try!`.
 #[derive(Debug)]
 pub enum Error {
     /// This error occurs when the given input is too big. This can happen

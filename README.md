@@ -75,6 +75,18 @@ fn main() {
 }
 ```
 
+### Example: the szip tool
+
+`szip` is a tool with similar behavior as `gzip`, except it uses Snappy
+compression. It can be installed with Cargo:
+
+```
+$ cargo install szip
+```
+
+To compress a file, run `szip file`. To decompress a file, run `szip -d
+file.sz`. See `szip --help` for more details.
+
 ### Testing
 
 This crate is tested against the reference C++ implementation of Snappy.
@@ -120,6 +132,6 @@ zflat10_pb       100,514 (1179 MB/s)   97,523 (1216 MB/s)         -2,991   -2.98
 zflat11_gaviota  358,002 (514 MB/s)    326,086 (565 MB/s)        -31,916   -8.92%
 ```
 
-Notes: These benchmarks were run with Snappy/C++ on commit `32d6d7`. Both the
-C++ and Rust benchmarks were run with the same benchmark harness. Benchmarks
-were run on an Intel i7-6900K.
+Notes: These benchmarks were run with Snappy/C++ on commit `32d6d7` with debug
+assertions disabled. Both the C++ and Rust benchmarks were run with the same
+benchmark harness. Benchmarks were run on an Intel i7-6900K.
