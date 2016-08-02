@@ -6,7 +6,7 @@ use std::result;
 /// A convenient type alias for `Result<T, snap::Error>`.
 pub type Result<T> = result::Result<T, Error>;
 
-/// IntoInnerError occurs when consuming a `Writer` fails.
+/// `IntoInnerError` occurs when consuming a `Writer` fails.
 ///
 /// Consuming the `Writer` causes a flush to happen. If the flush fails, then
 /// this error is returned, which contains both the original `Writer` and
@@ -18,7 +18,7 @@ pub struct IntoInnerError<W> {
     err: io::Error,
 }
 
-/// Creates a new IntoInnerError.
+/// Creates a new `IntoInnerError`.
 ///
 /// (This is a visibility hack. It's public in this module, but not in the
 /// crate.)
@@ -208,7 +208,7 @@ impl PartialEq for Error {
              &BufferTooSmall { given: given2, min: min2 }) => {
                 (given1, min1) == (given2, min2)
             }
-            (&Empty, &Empty) => true,
+            (&Empty, &Empty) |
             (&Header, &Header) => true,
             (&HeaderMismatch { expected_len: elen1, got_len: glen1 },
              &HeaderMismatch { expected_len: elen2, got_len: glen2 }) => {

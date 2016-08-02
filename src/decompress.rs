@@ -11,7 +11,7 @@ use MAX_INPUT_SIZE;
 /// tag byte.
 const TAG_LOOKUP_TABLE: TagLookupTable = TagLookupTable(tag::TAG_LOOKUP_TABLE);
 
-/// WORD_MASK is a map from the size of an integer in bytes to its
+/// `WORD_MASK` is a map from the size of an integer in bytes to its
 /// corresponding on a 32 bit integer. This is used when we need to read an
 /// integer and we know there are at least 4 bytes to read from a buffer. In
 /// this case, we can read a 32 bit little endian integer and mask out only the
@@ -407,7 +407,7 @@ impl TagLookupTable {
 
 /// Represents a single entry in the tag lookup table.
 ///
-/// See the documentation in TagLookupTable for the bit layout.
+/// See the documentation in `TagLookupTable` for the bit layout.
 ///
 /// The type is a `usize` for convenience.
 struct TagEntry(usize);
