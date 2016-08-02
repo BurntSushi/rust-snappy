@@ -9,7 +9,7 @@ documentation = "http://burntsushi.net/rustdoc/snap/"
 homepage = "https://github.com/BurntSushi/snap"
 repository = "https://github.com/BurntSushi/snap"
 keywords = ["snappy", "compress", "compression", "decompress", "decompression"]
-license = "Unlicense/MIT"
+license = "BSD-3-Clause"
 
 [[bin]]
 name = "szip"
