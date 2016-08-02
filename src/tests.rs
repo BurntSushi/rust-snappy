@@ -8,10 +8,10 @@ use {Encoder, Decoder, Error, decompress_len};
 // and compares it with the original input. If they are not equal, then the
 // test fails.
 macro_rules! roundtrip {
-    ($data:expr) => {
+    ($data:expr) => {{
         let d = &$data[..];
         assert_eq!(d, &*depress(&press(d)));
-    }
+    }}
 }
 
 // errored is a macro that tries to decompress the input and asserts that it
@@ -20,7 +20,7 @@ macro_rules! errored {
     ($data:expr, $err:expr) => {
         errored!($data, $err, false);
     };
-    ($data:expr, $err:expr, $bad_header:expr) => {
+    ($data:expr, $err:expr, $bad_header:expr) => {{
         let d = &$data[..];
 
         let mut buf = if $bad_header {
@@ -47,7 +47,7 @@ decompressed (len == {:?})
 ", d.len(), d, n, buf);
             }
         }
-    };
+    }}
 }
 
 // testtrip is a macro that defines a test that compresses the input, then
