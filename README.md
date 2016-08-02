@@ -12,7 +12,7 @@ and the
 [![Windows build status](https://ci.appveyor.com/api/projects/status/github/BurntSushi/rust-snappy?svg=true)](https://ci.appveyor.com/project/BurntSushi/rust-snappy)
 [![](http://meritbadge.herokuapp.com/snap)](https://crates.io/crates/snap)
 
-Dual-licensed under MIT or the [UNLICENSE](http://unlicense.org).
+Licensed under the BSD 3-Clause.
 
 ### Documentation
 
