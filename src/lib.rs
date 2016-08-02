@@ -26,6 +26,8 @@ This crate provides two ways to use Snappy. The first way is through the
 `Reader` and `Writer` types, which implement the `std::io::Read` and
 `std::io::Write` traits with the Snappy frame format. Unless you have a
 specific reason to the contrary, you should only need to use these types.
+Specifically, the Snappy frame format permits streaming compression or
+decompression.
 
 The second way is through the `Decoder` and `Encoder` types. These types
 provide lower level control to the raw Snappy format, and don't support a

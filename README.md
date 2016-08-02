@@ -135,3 +135,13 @@ zflat11_gaviota  358,002 (514 MB/s)    326,086 (565 MB/s)        -31,916   -8.92
 Notes: These benchmarks were run with Snappy/C++ on commit `32d6d7` with debug
 assertions disabled. Both the C++ and Rust benchmarks were run with the same
 benchmark harness. Benchmarks were run on an Intel i7-6900K.
+
+### Comparison with other Snappy crates
+
+* `snappy` - These are bindings to the C++ library. No support for the Snappy
+  frame format.
+* `snappy_framed` - Implements the Snappy frame format on top of the `snappy`
+  crate.
+* `rsnappy` - Written in pure Rust, but lacks documentation and the Snappy
+  frame format. Performance is unclear and tests appear incomplete.
+* `snzip` - Was created and immediately yanked from crates.io.
