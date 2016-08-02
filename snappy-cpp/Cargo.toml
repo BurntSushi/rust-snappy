@@ -1,6 +1,6 @@
 [package]
 name = "snappy-cpp"
-version = "0.1.0"
+version = "0.1.1"
 authors = ["Andrew Gallant <jamslam@gmail.com>"]
 license = "BSD-3-Clause"
 repository = "https://github.com/BurntSushi/snap"
