@@ -335,6 +335,24 @@ fn qc_cmpcpp() {
         .quickcheck(p as fn(_) -> _);
 }
 
+// Regression tests.
+
+// See: https://github.com/BurntSushi/rust-snappy/issues/3
+#[cfg(target_pointer_width = "32")]
+testerrored!(err_lit_len_overflow1, &b"\x11\x00\x00\xfc\xfe\xff\xff\xff"[..],
+             Error::Literal {
+                 len: ::std::u32::MAX as u64,
+                 src_len: 0,
+                 dst_len: 16,
+             });
+#[cfg(target_pointer_width = "32")]
+testerrored!(err_lit_len_overflow2, &b"\x11\x00\x00\xfc\xff\xff\xff\xff"[..],
+             Error::Literal {
+                 len: ::std::u32::MAX as u64 + 1,
+                 src_len: 0,
+                 dst_len: 16,
+             });
+
 // Helper functions.
 
 fn press(bytes: &[u8]) -> Vec<u8> {

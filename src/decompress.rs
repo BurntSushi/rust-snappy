@@ -165,9 +165,10 @@ impl<'s, 'd> Decompress<'s, 'd> {
     #[inline(always)]
     fn read_literal(
         &mut self,
-        mut len: usize,
+        len: usize,
     ) -> Result<()> {
         debug_assert!(len <= 64);
+        let mut len = len as u64;
         // As an optimization for the common case, if the literal length is
         // <=16 and we have enough room in both `src` and `dst`, copy the
         // literal using unaligned loads and stores.
@@ -186,8 +187,8 @@ impl<'s, 'd> Decompress<'s, 'd> {
                 // Hopefully uses SIMD registers for 128 bit load/store.
                 ptr::copy_nonoverlapping(srcp, dstp, 16);
             }
-            self.d += len;
-            self.s += len;
+            self.d += len as usize;
+            self.s += len as usize;
             return Ok(());
         }
         // When the length is bigger than 60, it indicates that we need to read
@@ -204,16 +205,18 @@ impl<'s, 'd> Decompress<'s, 'd> {
             }
             // Since we know there are 4 bytes left to read, read a 32 bit LE
             // integer and mask away the bits we don't need.
-            let byte_count = len - 60;
-            len = LE::read_u32(&self.src[self.s..]) as usize;
-            len = (len & WORD_MASK[byte_count]) + 1;
+            let byte_count = len as usize - 60;
+            len = LE::read_u32(&self.src[self.s..]) as u64;
+            len = (len & (WORD_MASK[byte_count] as u64)) + 1;
             self.s += byte_count;
         }
         // If there's not enough buffer left to load or store this literal,
         // then the input is corrupt.
-        if self.s + len > self.src.len() || self.d + len > self.dst.len() {
+        // if self.s + len > self.src.len() || self.d + len > self.dst.len() {
+        if ((self.src.len() - self.s) as u64) < len
+            || ((self.dst.len() - self.d) as u64) < len {
             return Err(Error::Literal {
-                len: len as u64,
+                len: len,
                 src_len: (self.src.len() - self.s) as u64,
                 dst_len: (self.dst.len() - self.d) as u64,
             });
@@ -223,10 +226,10 @@ impl<'s, 'd> Decompress<'s, 'd> {
             // is correct.
             let srcp = self.src.as_ptr().offset(self.s as isize);
             let dstp = self.dst.as_mut_ptr().offset(self.d as isize);
-            ptr::copy_nonoverlapping(srcp, dstp, len);
+            ptr::copy_nonoverlapping(srcp, dstp, len as usize);
         }
-        self.s += len;
-        self.d += len;
+        self.s += len as usize;
+        self.d += len as usize;
         Ok(())
     }
 
