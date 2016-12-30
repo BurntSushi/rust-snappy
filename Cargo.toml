@@ -20,12 +20,12 @@ bench = false
 name = "bench"
 
 [dependencies]
-byteorder = "0.5.3"
+byteorder = "1"
 lazy_static = "0.2"
 snappy-cpp = { path = "snappy-cpp", version = "0.1", optional = true }
 
 [dev-dependencies]
-quickcheck = "0.3"
+quickcheck = "0.4"
 rand = "0.3"
 
 [features]
