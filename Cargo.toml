@@ -6,7 +6,7 @@ description = """
 A pure Rust implementation of the Snappy compression algorithm. Includes
 streaming compression and decompression.
 """
-documentation = "http://burntsushi.net/rustdoc/snap/"
+documentation = "https://docs.rs/snap"
 homepage = "https://github.com/BurntSushi/rust-snappy"
 repository = "https://github.com/BurntSushi/rust-snappy"
 readme = "README.md"

@@ -16,7 +16,7 @@ Licensed under the BSD 3-Clause.
 
 ### Documentation
 
-[http://burntsushi.net/rustdoc/snap/](http://burntsushi.net/rustdoc/snap/)
+https://docs.rs/snap
 
 ### Usage
 
