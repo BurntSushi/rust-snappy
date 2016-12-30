@@ -1,6 +1,6 @@
 [package]
 name = "szip"
-version = "0.1.0"  #:version
+version = "0.1.1"  #:version
 authors = ["Andrew Gallant <jamslam@gmail.com>"]
 description = """
 A fast command line tool for snappy compression and decompression.
