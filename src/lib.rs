@@ -15,7 +15,7 @@ simply add it as a dependency to your `Cargo.toml`:
 
 ```ignore
 [dependencies]
-snap = "0.1"
+snap = "0.2"
 ```
 
 and add `extern crate snap;` to your crate root.
