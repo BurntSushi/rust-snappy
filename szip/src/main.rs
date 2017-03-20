@@ -29,9 +29,9 @@ Note that this requires reading the entire input/output into memory. In
 general, you shouldn't use this flag unless you have a specific need to.
 
 Usage:
-    snappy [options] [<file> ...]
-    snappy --help
-    snappy --version
+    szip [options] [<file> ...]
+    szip --help
+    szip --version
 
 Options:
     -d, --decompress   Decompress files (default is compression).
