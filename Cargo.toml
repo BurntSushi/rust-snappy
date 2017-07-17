@@ -18,6 +18,7 @@ bench = false
 
 [[bench]]
 name = "bench"
+path = "src/bench.rs"
 
 [dependencies]
 byteorder = "1"
