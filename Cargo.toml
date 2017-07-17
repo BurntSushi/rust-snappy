@@ -16,9 +16,6 @@ license = "BSD-3-Clause"
 [lib]
 bench = false
 
-[[bench]]
-name = "bench"
-
 [dependencies]
 byteorder = "1"
 lazy_static = "0.2"
