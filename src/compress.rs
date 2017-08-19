@@ -499,7 +499,7 @@ impl Encoder {
         // instead of putting a bigger one on the heap. This particular
         // optimization is important if the caller is using Snappy to compress
         // many small blocks. (The memset savings alone is considerable.)
-        let mut table: &mut [u16] =
+        let table: &mut [u16] =
             if table_size <= SMALL_TABLE_SIZE {
                 &mut self.small[0..table_size]
             } else {
