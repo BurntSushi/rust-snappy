@@ -281,29 +281,28 @@ impl<'s, 'd> Decompress<'s, 'd> {
             }
         // If we have some wiggle room, try to decompress the copy 16 bytes
         // at a time with 128 bit unaligned loads/stores. Remember, we can't
-        // just do a memcpy because decompressing copies my require copying
+        // just do a memcpy because decompressing copies may require copying
         // overlapping memory.
         //
         // We need the extra wiggle room to make effective use of 128 bit
         // loads/stores. Even if the store ends up copying more data than we
         // need, we're careful to advance `d` by the correct amount at the end.
-        } else if end + 23 <= self.dst.len() {
+        } else if end + 24 <= self.dst.len() {
             unsafe {
                 // SAFETY: We know that dstp is preceded by at least `offset`
                 // bytes from the `d <= offset` check above.
                 //
                 // We don't know whether dstp overlaps with srcp, so we start
                 // by copying from srcp to dstp until they no longer overlap.
-                // The worst case is when dstp-src = 1 and copy length = 1. The
+                // The worst case is when dstp-src = 3 and copy length = 1. The
                 // first loop will issue these copy operations before stopping:
                 //
-                //   [0, 15] -> [1, 16]
-                //   [0, 15] -> [2, 17]
-                //   [0, 15] -> [4, 19]
-                //   [0, 15] -> [8, 23]
+                //   [-1, 14] -> [0, 15]
+                //   [-1, 14] -> [3, 18]
+                //   [-1, 14] -> [9, 24]
                 //
                 // But the copy had length 1, so it was only supposed to write
-                // to [0, 0]. But the last copy wrote to [8, 23], which is 23
+                // to [0, 0]. But the last copy wrote to [9, 24], which is 24
                 // extra bytes in dst *beyond* the end of the copy, which is
                 // guaranteed by the conditional above.
                 let mut dstp = self.dst.as_mut_ptr().offset(self.d as isize);
@@ -314,6 +313,7 @@ impl<'s, 'd> Decompress<'s, 'd> {
                         break;
                     }
                     // srcp and dstp can overlap, so use ptr::copy.
+                    debug_assert!(self.d + 16 <= self.dst.len());
                     ptr::copy(srcp, dstp, 16);
                     self.d += diff as usize;
                     dstp = dstp.offset(diff);
