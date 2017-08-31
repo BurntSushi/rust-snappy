@@ -168,6 +168,27 @@ fn small_regular() {
     }
 }
 
+// Test that triggered an out of bounds write.
+#[test]
+fn decompress_copy_close_to_end_1() {
+    let buf = [27,
+               0b000010_00, 1, 2, 3,
+               0b000_000_10, 3, 0,
+               0b010110_00, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20 ,21, 22, 23, 24, 25, 26];
+    let decompressed = [1, 2, 3, 1, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26];
+    assert_eq!(decompressed, &*depress(&buf));
+}
+
+#[test]
+fn decompress_copy_close_to_end_2() {
+    let buf = [28,
+               0b000010_00, 1, 2, 3,
+               0b000_000_10, 3, 0,
+               0b010111_00, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20 ,21, 22, 23, 24, 25, 26, 27];
+    let decompressed = [1, 2, 3, 1, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27];
+    assert_eq!(decompressed, &*depress(&buf));
+}
+
 // Tests decompression on malformed data.
 
 // An empty buffer.
