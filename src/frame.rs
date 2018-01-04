@@ -115,6 +115,11 @@ impl<W: Write> Writer<W> {
             Err(err) => Err(new_into_inner_error(self, err)),
         }
     }
+
+    /// Gets a reference to the underlying writer in this encoder.
+    pub fn get_ref(&self) -> &W {
+        &self.inner.as_ref().unwrap().w
+    }
 }
 
 impl<W: Write> Drop for Writer<W> {
@@ -255,6 +260,11 @@ impl<R: Read> Reader<R> {
             dste: 0,
             read_stream_ident: false,
         }
+    }
+
+    /// Gets a reference to the underlying reader in this decoder.
+    pub fn get_ref(&self) -> &R {
+        &self.r
     }
 }
 
