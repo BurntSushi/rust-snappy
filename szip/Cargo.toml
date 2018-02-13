@@ -19,6 +19,3 @@ docopt = "0.6"
 filetime = "0.1"
 rustc-serialize = "0.3"
 snap = { path = "..", version = "0.2" }
-
-[profile.release]
-debug = true

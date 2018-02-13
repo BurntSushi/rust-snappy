@@ -12,8 +12,8 @@ install:
   - cargo -V
 build: false
 test_script:
-  - cargo build --verbose
-  - cargo test --verbose
+  - cargo build --all --verbose
+  - cargo test --all --verbose
 branches:
   only:
     - master

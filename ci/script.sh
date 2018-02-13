@@ -2,7 +2,7 @@
 
 set -ex
 
-cargo build --verbose
+cargo build --all --verbose
 cargo doc --verbose
 
 # If we're testing on an older version of Rust, then only check that we
@@ -14,7 +14,7 @@ if [ "$TRAVIS_RUST_VERSION" = "1.21.0" ]; then
   exit
 fi
 
-cargo test --verbose
+cargo test --all --verbose
 if [ "$TRAVIS_RUST_VERSION" = "nightly" ]; then
   cargo bench --verbose --no-run
 fi
