@@ -23,11 +23,11 @@ and add `extern crate snap;` to your crate root.
 # Overview
 
 This crate provides two ways to use Snappy. The first way is through the
-`Reader` and `Writer` types, which implement the `std::io::Read` and
-`std::io::Write` traits with the Snappy frame format. Unless you have a
-specific reason to the contrary, you should only need to use these types.
-Specifically, the Snappy frame format permits streaming compression or
-decompression.
+`snap::read::FrameDecoder` and `snap::write::FrameEncoder` types, which
+implement the `std::io::Read` and `std::io::Write` traits with the Snappy frame
+format. Unless you have a specific reason to the contrary, you should only need
+to use these types. Specifically, the Snappy frame format permits streaming
+compression or decompression.
 
 The second way is through the `Decoder` and `Encoder` types. These types
 provide lower level control to the raw Snappy format, and don't support a
@@ -76,7 +76,7 @@ fn main() {
     let stdout = io::stdout();
 
     // Wrap the stdin reader in a Snappy reader.
-    let mut rdr = snap::Reader::new(stdin.lock());
+    let mut rdr = snap::read::FrameDecoder::new(stdin.lock());
     let mut wtr = stdout.lock();
     io::copy(&mut rdr, &mut wtr).expect("I/O operation failed");
 }
@@ -98,7 +98,6 @@ extern crate snappy_cpp;
 pub use compress::{Encoder, max_compress_len};
 pub use decompress::{Decoder, decompress_len};
 pub use error::{Error, IntoInnerError, Result};
-pub use frame::{Reader, Writer};
 
 /// We don't permit compressing a block bigger than what can fit in a u32.
 const MAX_INPUT_SIZE: u64 = ::std::u32::MAX as u64;
@@ -112,7 +111,9 @@ mod crc32;
 mod decompress;
 mod error;
 mod frame;
+pub mod read;
 mod tag;
 #[cfg(test)]
 mod tests;
+pub mod write;
 mod varint;

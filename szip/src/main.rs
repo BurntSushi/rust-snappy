@@ -169,7 +169,7 @@ impl Args {
             let compressed = try!(snap::Encoder::new().compress_vec(&buf));
             try!(dst.write_all(&compressed));
         } else {
-            let mut dst = snap::Writer::new(dst);
+            let mut dst = snap::write::FrameEncoder::new(dst);
             try!(io::copy(&mut src, &mut dst));
         }
         Ok(())
@@ -187,7 +187,7 @@ impl Args {
             let decompressed = try!(snap::Decoder::new().decompress_vec(&buf));
             try!(dst.write_all(&decompressed));
         } else {
-            let mut src = snap::Reader::new(src);
+            let mut src = snap::read::FrameDecoder::new(src);
             try!(io::copy(&mut src, &mut dst));
         }
         Ok(())
