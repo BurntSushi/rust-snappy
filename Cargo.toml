@@ -33,3 +33,7 @@ debug = true
 
 [profile.test]
 opt-level = 3
+
+[workspace]
+exclude = ["snappy-cpp"]
+members = ["szip"]
