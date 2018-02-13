@@ -30,19 +30,19 @@ fn press(bytes: &[u8]) -> Vec<u8> {
 
 fn frame_press(bytes: &[u8]) -> Vec<u8> {
     use std::io::Write;
-    use snap::Writer;
+    use snap::write;
 
-    let mut wtr = Writer::new(vec![]);
+    let mut wtr = write::FrameEncoder::new(vec![]);
     wtr.write_all(bytes).unwrap();
     wtr.into_inner().unwrap()
 }
 
 fn frame_depress(bytes: &[u8]) -> Vec<u8> {
     use std::io::Read;
-    use snap::Reader;
+    use snap::read;
 
     let mut buf = vec![];
-    Reader::new(bytes).read_to_end(&mut buf).unwrap();
+    read::FrameDecoder::new(bytes).read_to_end(&mut buf).unwrap();
     buf
 }
 
