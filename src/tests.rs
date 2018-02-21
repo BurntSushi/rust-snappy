@@ -68,9 +68,16 @@ macro_rules! testtrip {
 
             #[test]
             fn roundtrip_frame() {
-                use super::{frame_depress, frame_press};
+                use super::{read_frame_depress, write_frame_press};
                 let d = &$data[..];
-                assert_eq!(d, &*frame_depress(&frame_press(d)));
+                assert_eq!(d, &*read_frame_depress(&write_frame_press(d)));
+            }
+
+            #[test]
+            fn read_and_write_frame_encoder_match() {
+                use super::{read_frame_press, write_frame_press};
+                let d = &$data[..];
+                assert_eq!(read_frame_press(d), write_frame_press(d));
             }
 
             #[test]
@@ -187,6 +194,27 @@ fn decompress_copy_close_to_end_2() {
                0b010111_00, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20 ,21, 22, 23, 24, 25, 26, 27];
     let decompressed = [1, 2, 3, 1, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27];
     assert_eq!(decompressed, &*depress(&buf));
+}
+
+// The `read::FrameEncoder` code uses different code paths depending on buffer
+// size, so let's test both. Also, very small buffers are a good stress test.
+#[test]
+fn read_frame_encoder_big_and_little_buffers() {
+    use read;
+    use std::io::{BufReader, Read};
+
+    let bytes = &include_bytes!("../data/html")[..];
+
+    let mut big = BufReader::with_capacity(1_000_000, read::FrameEncoder::new(bytes));
+    let mut big_out = vec![];
+    big.read_to_end(&mut big_out).unwrap();
+
+    // 5 bytes is small enough to break up headers, etc.
+    let mut little = BufReader::with_capacity(5, read::FrameEncoder::new(bytes));
+    let mut little_out = vec![];
+    little.read_to_end(&mut little_out).unwrap();
+
+    assert_eq!(big_out, little_out);
 }
 
 // Tests decompression on malformed data.
@@ -336,7 +364,7 @@ fn qc_roundtrip_stream() {
         if bytes.is_empty() {
             return TestResult::discard();
         }
-        TestResult::from_bool(frame_depress(&frame_press(&bytes)) == bytes)
+        TestResult::from_bool(read_frame_depress(&write_frame_press(&bytes)) == bytes)
     }
     QuickCheck::new()
         .gen(StdGen::new(::rand::thread_rng(), 10_000))
@@ -384,7 +412,7 @@ fn depress(bytes: &[u8]) -> Vec<u8> {
     Decoder::new().decompress_vec(bytes).unwrap()
 }
 
-fn frame_press(bytes: &[u8]) -> Vec<u8> {
+fn write_frame_press(bytes: &[u8]) -> Vec<u8> {
     use std::io::Write;
     use write;
 
@@ -393,12 +421,21 @@ fn frame_press(bytes: &[u8]) -> Vec<u8> {
     wtr.into_inner().unwrap()
 }
 
-fn frame_depress(bytes: &[u8]) -> Vec<u8> {
+fn read_frame_depress(bytes: &[u8]) -> Vec<u8> {
     use std::io::Read;
     use read;
 
     let mut buf = vec![];
     read::FrameDecoder::new(bytes).read_to_end(&mut buf).unwrap();
+    buf
+}
+
+fn read_frame_press(bytes: &[u8]) -> Vec<u8> {
+    use std::io::Read;
+    use read;
+
+    let mut buf = vec![];
+    read::FrameEncoder::new(bytes).read_to_end(&mut buf).unwrap();
     buf
 }
 
