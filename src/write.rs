@@ -9,20 +9,19 @@ It would also be possible to provide a `write::FrameEncoder`, which decompresses
 data as it writes it, but it hasn't been implemented yet.
 */
 
-use byteorder::{ByteOrder, LittleEndian as LE};
 use std::io::{self, Write};
 
 use compress::Encoder;
 use error::{IntoInnerError, new_into_inner_error};
-use frame::{ChunkType, crc32c_masked, MAX_COMPRESS_BLOCK_SIZE,
+use frame::{CHUNK_HEADER_AND_CRC_SIZE, compress_frame, MAX_COMPRESS_BLOCK_SIZE,
             STREAM_IDENTIFIER};
 use MAX_BLOCK_SIZE;
 
 /// A writer for compressing a Snappy stream.
 ///
-/// This `Writer` wraps any other writer that implements `io::Write`. Bytes
-/// written to this writer are compressed using the
-/// [Snappy frame format](https://github.com/google/snappy/blob/master/framing_format.txt)
+/// This `FrameEncoder` wraps any other writer that implements `io::Write`.
+/// Bytes written to this writer are compressed using the [Snappy frame
+/// format](https://github.com/google/snappy/blob/master/framing_format.txt)
 /// (file extension `sz`, MIME type `application/x-snappy-framed`).
 ///
 /// Writes are buffered automatically, so there's no need to wrap the given
@@ -70,7 +69,7 @@ impl<W: Write> FrameEncoder<W> {
                 enc: Encoder::new(),
                 dst: vec![0; *MAX_COMPRESS_BLOCK_SIZE],
                 wrote_stream_ident: false,
-                chunk_header: [0; 8],
+                chunk_header: [0; CHUNK_HEADER_AND_CRC_SIZE],
             }),
             src: Vec::with_capacity(MAX_BLOCK_SIZE),
         }
@@ -160,30 +159,16 @@ impl<W: Write> Inner<W> {
                 src = &src[0..MAX_BLOCK_SIZE];
             }
             buf = &buf[src.len()..];
-            let checksum = crc32c_masked(src);
 
-            // Compress the buffer. If compression sucked, throw it out and
-            // write uncompressed bytes instead. Since our buffer is at most
-            // MAX_BLOCK_SIZE and our dst buffer has size
-            // max_compress_len(MAX_BLOCK_SIZE), we have enough space.
-            let compress_len = try!(self.enc.compress(src, &mut self.dst));
-            let (chunk_type, chunk_len) =
-                // We add 4 to the chunk_len because of the checksum.
-                if compress_len >= src.len() - (src.len() / 8) {
-                    (ChunkType::Uncompressed, 4 + src.len())
-                } else {
-                    (ChunkType::Compressed, 4 + compress_len)
-                };
-
-            self.chunk_header[0] = chunk_type as u8;
-            LE::write_uint(&mut self.chunk_header[1..], chunk_len as u64, 3);
-            LE::write_u32(&mut self.chunk_header[4..], checksum);
+            let frame_data = try!(compress_frame(
+                &mut self.enc,
+                src,
+                &mut self.chunk_header,
+                &mut self.dst,
+                false,
+            ));
             try!(self.w.write_all(&self.chunk_header));
-            if chunk_type == ChunkType::Compressed {
-                try!(self.w.write_all(&self.dst[0..compress_len]))
-            } else {
-                try!(self.w.write_all(src))
-            };
+            try!(self.w.write_all(frame_data));
             total += src.len();
         }
         Ok(total)

@@ -15,10 +15,11 @@ use byteorder::{ReadBytesExt, ByteOrder, LittleEndian as LE};
 use std::cmp;
 use std::io::{self, Read};
 
+use compress::Encoder;
 use decompress::{Decoder, decompress_len};
 use error::Error;
-use frame::{ChunkType, crc32c_masked, MAX_COMPRESS_BLOCK_SIZE,
-            STREAM_BODY};
+use frame::{CHUNK_HEADER_AND_CRC_SIZE, ChunkType, compress_frame, crc32c_masked,
+            MAX_COMPRESS_BLOCK_SIZE, STREAM_BODY, STREAM_IDENTIFIER};
 use MAX_BLOCK_SIZE;
 
 /// A reader for decompressing a Snappy stream.
@@ -203,5 +204,150 @@ fn read_exact_eof<R: Read>(rdr: &mut R, buf: &mut [u8]) -> io::Result<bool> {
         Ok(()) => Ok(true),
         Err(ref err) if err.kind() == UnexpectedEof => Ok(false),
         Err(err) => Err(err),
+    }
+}
+
+/// The maximum block that `FrameEncoder` can output in a single read operation.
+lazy_static! {
+    static ref MAX_READ_FRAME_ENCODER_BLOCK_SIZE: usize = (
+        STREAM_IDENTIFIER.len() + CHUNK_HEADER_AND_CRC_SIZE
+            + *MAX_COMPRESS_BLOCK_SIZE
+    );
+}
+
+/// A reader for compressing data using snappy as it is read. Usually you'll
+/// want `snap::read::FrameDecoder` (for decompressing while reading) or
+/// `snap::write::FrameEncoder` (for compressing while writing) instead.
+pub struct FrameEncoder<R: Read> {
+    /// Internally, we split `FrameEncoder` in two to keep the borrow checker
+    /// happy. The `inner` member contains everything that `read_frame` needs
+    /// to fetch a frame's worth of data and compress it.
+    inner: Inner<R>,
+
+    /// Data that we've encoded and are ready to return to our caller.
+    dst: Vec<u8>,
+
+    /// Starting point of bytes in `dst` not yet given back to the caller.
+    dsts: usize,
+
+    /// Ending point of bytes in `dst` that we want to give to our caller.
+    dste: usize,
+}
+
+struct Inner<R: Read> {
+    /// The underlying data source.
+    r: R,
+
+    /// An encoder that we reuse that does the actual block based compression.
+    enc: Encoder,
+
+    /// Data taken from the underlying `r`, and not yet compressed.
+    src: Vec<u8>,
+
+    /// Have we written the standard snappy header to `dst` yet?
+    wrote_stream_ident: bool,
+}
+
+impl<R: Read> FrameEncoder<R> {
+    /// Create a new reader for streaming Snappy compression.
+    pub fn new(rdr: R) -> FrameEncoder<R> {
+        FrameEncoder {
+            inner: Inner {
+                r: rdr,
+                enc: Encoder::new(),
+                src: Vec::with_capacity(MAX_BLOCK_SIZE),
+                wrote_stream_ident: false,
+            },
+            dst: vec![0; *MAX_READ_FRAME_ENCODER_BLOCK_SIZE],
+            dsts: 0,
+            dste: 0,
+        }
+    }
+
+    /// Gets a reference to the underlying reader in this decoder.
+    pub fn get_ref(&self) -> &R {
+        &self.inner.r
+    }
+
+    /// Read previously compressed data from `self.dst`, returning the number of
+    /// bytes read. If `self.dst` is empty, returns 0.
+    fn read_from_dst(&mut self, buf: &mut [u8]) -> usize {
+        let available_bytes = self.dste - self.dsts;
+        let count = cmp::min(available_bytes, buf.len());
+        buf[..count].copy_from_slice(&self.dst[self.dsts..self.dsts+count]);
+        self.dsts += count;
+        count
+    }
+}
+
+impl<R: Read> Read for FrameEncoder<R> {
+    fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
+        // Try reading previously compressed bytes from our `dst` buffer, if
+        // any.
+        let count = self.read_from_dst(buf);
+
+        if count > 0 {
+            // We had some bytes in our `dst` buffer that we used.
+            Ok(count)
+        } else if buf.len() >= *MAX_READ_FRAME_ENCODER_BLOCK_SIZE {
+            // Our output `buf` is big enough that we can directly write into
+            // it, so bypass `dst` entirely.
+            self.inner.read_frame(buf)
+        } else {
+            // We need to refill `self.dst`, and then return some bytes from
+            // that.
+            let count = try!(self.inner.read_frame(&mut self.dst));
+            self.dsts = 0;
+            self.dste = count;
+            Ok(self.read_from_dst(buf))
+        }
+    }
+}
+
+impl<R: Read> Inner<R> {
+    /// Read from `self.r`, and create a new frame, writing it to `dst`, which
+    /// must be at least `*MAX_READ_FRAME_ENCODER_BLOCK_SIZE` bytes in size.
+    fn read_frame(&mut self, dst: &mut [u8]) -> io::Result<usize> {
+        debug_assert!(dst.len() >= *MAX_READ_FRAME_ENCODER_BLOCK_SIZE);
+
+        // Try to read a max-sized block to compress from the underlying stream.
+        // This is surprisingly complicated in Rust, requiring us to pass a
+        // zero-length mutable buffer and get it filled, and requiring the
+        // use of the `by_ref().take(...).read_to_end(...)` idiom to read
+        // up to the specified number of bytes from a file.
+        self.src.truncate(0);
+        try!(self.r.by_ref().take(MAX_BLOCK_SIZE as u64)
+            .read_to_end(&mut self.src));
+        debug_assert!(self.src.len() <= MAX_BLOCK_SIZE);
+        if self.src.len() == 0 {
+            return Ok(0);
+        }
+
+        // If we haven't yet written the stream header to `dst`, write it.
+        let mut dst_write_start = 0;
+        if !self.wrote_stream_ident {
+            dst[0..STREAM_IDENTIFIER.len()]
+                .copy_from_slice(STREAM_IDENTIFIER);
+            dst_write_start += STREAM_IDENTIFIER.len();
+            self.wrote_stream_ident = true;
+        }
+
+        // Reserve space for our chunk header. We need to use `split_at_mut` so
+        // that we can get two mutable slices pointing at non-overlapping parts
+        // of `dst`.
+        let (chunk_header, remaining_dst) = dst[dst_write_start..]
+            .split_at_mut(CHUNK_HEADER_AND_CRC_SIZE);
+        dst_write_start += CHUNK_HEADER_AND_CRC_SIZE;
+
+        // Compress our frame if possible, telling `compress_frame` to always
+        // put the output in `dst`.
+        let frame_data = try!(compress_frame(
+            &mut self.enc,
+            &self.src,
+            chunk_header,
+            remaining_dst,
+            true,
+        ));
+        Ok(dst_write_start + frame_data.len())
     }
 }
