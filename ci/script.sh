@@ -2,7 +2,7 @@
 
 set -ex
 
-cargo build --all --verbose
+cargo build --verbose
 cargo doc --verbose
 
 # If we're testing on an older version of Rust, then only check that we
