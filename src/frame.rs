@@ -4,7 +4,7 @@ use std::io::{self, Read, Write};
 use byteorder::{ReadBytesExt, ByteOrder, LittleEndian as LE};
 
 use compress::{Encoder, max_compress_len};
-use crc32::crc32c;
+use crc32c::crc32c;
 use decompress::{Decoder, decompress_len};
 use error::{Error, IntoInnerError, new_into_inner_error};
 use MAX_BLOCK_SIZE;

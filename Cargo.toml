@@ -18,6 +18,7 @@ bench = false
 
 [dependencies]
 byteorder = "1"
+crc32c = "0.4"
 lazy_static = "1"
 snappy-cpp = { path = "snappy-cpp", version = "0.1", optional = true }
 
