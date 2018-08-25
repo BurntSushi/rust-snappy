@@ -22,8 +22,8 @@ lazy_static = "1"
 snappy-cpp = { path = "snappy-cpp", version = "0.1", optional = true }
 
 [dev-dependencies]
-quickcheck = "0.6"
-rand = "0.4"
+quickcheck = { version = "0.7", default-features = false }
+rand = "0.5"
 
 [features]
 cpp = ["snappy-cpp"]
