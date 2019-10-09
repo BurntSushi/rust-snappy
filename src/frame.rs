@@ -1,17 +1,16 @@
 use std::cmp;
 use std::io::{self, Read, Write};
 
-use byteorder::{ReadBytesExt, ByteOrder, LittleEndian as LE};
+use byteorder::{ByteOrder, LittleEndian as LE, ReadBytesExt};
 
-use compress::{Encoder, max_compress_len};
+use compress::{max_compress_len, Encoder};
 use crc32::crc32c;
-use decompress::{Decoder, decompress_len};
-use error::{Error, IntoInnerError, new_into_inner_error};
+use decompress::{decompress_len, Decoder};
+use error::{new_into_inner_error, Error, IntoInnerError};
 use MAX_BLOCK_SIZE;
 
 lazy_static! {
-    static ref MAX_COMPRESS_BLOCK_SIZE: usize =
-        max_compress_len(MAX_BLOCK_SIZE);
+    static ref MAX_COMPRESS_BLOCK_SIZE: usize = max_compress_len(MAX_BLOCK_SIZE);
 }
 
 // The special magic string that starts any stream.
@@ -140,18 +139,17 @@ impl<W: Write> Write for Writer<W> {
         loop {
             let free = self.src.capacity() - self.src.len();
             // n is the number of bytes extracted from buf.
-            let n =
-                if buf.len() <= free {
-                    break;
-                } else if self.src.is_empty() {
-                    // If buf is bigger than our entire buffer then avoid
-                    // the indirection and write the buffer directly.
-                    try!(self.inner.as_mut().unwrap().write(buf))
-                } else {
-                    self.src.extend_from_slice(&buf[0..free]);
-                    try!(self.flush());
-                    free
-                };
+            let n = if buf.len() <= free {
+                break;
+            } else if self.src.is_empty() {
+                // If buf is bigger than our entire buffer then avoid
+                // the indirection and write the buffer directly.
+                self.inner.as_mut().unwrap().write(buf)?
+            } else {
+                self.src.extend_from_slice(&buf[0..free]);
+                self.flush()?;
+                free
+            };
             buf = &buf[n..];
             total += n;
         }
@@ -169,7 +167,7 @@ impl<W: Write> Write for Writer<W> {
         if self.src.is_empty() {
             return Ok(());
         }
-        try!(self.inner.as_mut().unwrap().write(&self.src));
+        self.inner.as_mut().unwrap().write(&self.src)?;
         self.src.truncate(0);
         Ok(())
     }
@@ -180,7 +178,7 @@ impl<W: Write> Inner<W> {
         let mut total = 0;
         if !self.wrote_stream_ident {
             self.wrote_stream_ident = true;
-            try!(self.w.write_all(STREAM_IDENTIFIER));
+            self.w.write_all(STREAM_IDENTIFIER)?;
         }
         while !buf.is_empty() {
             // Advance buf and get our block.
@@ -195,7 +193,7 @@ impl<W: Write> Inner<W> {
             // write uncompressed bytes instead. Since our buffer is at most
             // MAX_BLOCK_SIZE and our dst buffer has size
             // max_compress_len(MAX_BLOCK_SIZE), we have enough space.
-            let compress_len = try!(self.enc.compress(src, &mut self.dst));
+            let compress_len = self.enc.compress(src, &mut self.dst)?;
             let (chunk_type, chunk_len) =
                 // We add 4 to the chunk_len because of the checksum.
                 if compress_len >= src.len() - (src.len() / 8) {
@@ -207,11 +205,11 @@ impl<W: Write> Inner<W> {
             self.chunk_header[0] = chunk_type as u8;
             LE::write_uint(&mut self.chunk_header[1..], chunk_len as u64, 3);
             LE::write_u32(&mut self.chunk_header[4..], checksum);
-            try!(self.w.write_all(&self.chunk_header));
+            self.w.write_all(&self.chunk_header)?;
             if chunk_type == ChunkType::Compressed {
-                try!(self.w.write_all(&self.dst[0..compress_len]))
+                self.w.write_all(&self.dst[0..compress_len])?
             } else {
-                try!(self.w.write_all(src))
+                self.w.write_all(src)?
             };
             total += src.len();
         }
@@ -273,7 +271,7 @@ impl<R: Read> Read for Reader<R> {
         macro_rules! fail {
             ($err:expr) => {
                 return Err(io::Error::from($err));
-            }
+            };
         }
         loop {
             if self.dsts < self.dste {
@@ -283,7 +281,7 @@ impl<R: Read> Read for Reader<R> {
                 self.dsts = dste;
                 return Ok(len);
             }
-            if !try!(read_exact_eof(&mut self.r, &mut self.src[0..4])) {
+            if !read_exact_eof(&mut self.r, &mut self.src[0..4])? {
                 return Ok(0);
             }
             let ty = ChunkType::from_u8(self.src[0]);
@@ -310,7 +308,7 @@ impl<R: Read> Read for Reader<R> {
                 Err(b) if 0x80 <= b && b <= 0xFD => {
                     // Spec says that chunk types 0x80-0xFD are reserved but
                     // skippable.
-                    try!(self.r.read_exact(&mut self.src[0..len]));
+                    self.r.read_exact(&mut self.src[0..len])?;
                 }
                 Err(b) => {
                     // Can never happen. 0x02-0x7F and 0x80-0xFD are handled
@@ -321,7 +319,7 @@ impl<R: Read> Read for Reader<R> {
                 }
                 Ok(ChunkType::Padding) => {
                     // Just read and move on.
-                    try!(self.r.read_exact(&mut self.src[0..len]));
+                    self.r.read_exact(&mut self.src[0..len])?;
                 }
                 Ok(ChunkType::Stream) => {
                     if len != STREAM_BODY.len() {
@@ -330,7 +328,7 @@ impl<R: Read> Read for Reader<R> {
                             header: true,
                         })
                     }
-                    try!(self.r.read_exact(&mut self.src[0..len]));
+                    self.r.read_exact(&mut self.src[0..len])?;
                     if &self.src[0..len] != STREAM_BODY {
                         fail!(Error::StreamHeaderMismatch {
                             bytes: self.src[0..len].to_vec(),
@@ -338,7 +336,7 @@ impl<R: Read> Read for Reader<R> {
                     }
                 }
                 Ok(ChunkType::Uncompressed) => {
-                    let expected_sum = try!(self.r.read_u32::<LE>());
+                    let expected_sum = self.r.read_u32::<LE>()?;
                     let n = len - 4;
                     if n > self.dst.len() {
                         fail!(Error::UnsupportedChunkLength {
@@ -346,7 +344,7 @@ impl<R: Read> Read for Reader<R> {
                             header: false,
                         });
                     }
-                    try!(self.r.read_exact(&mut self.dst[0..n]));
+                    self.r.read_exact(&mut self.dst[0..n])?;
                     let got_sum = crc32c_masked(&self.dst[0..n]);
                     if expected_sum != got_sum {
                         fail!(Error::Checksum {
@@ -358,7 +356,7 @@ impl<R: Read> Read for Reader<R> {
                     self.dste = n;
                 }
                 Ok(ChunkType::Compressed) => {
-                    let expected_sum = try!(self.r.read_u32::<LE>());
+                    let expected_sum = self.r.read_u32::<LE>()?;
                     let sn = len - 4;
                     if sn > self.src.len() {
                         fail!(Error::UnsupportedChunkLength {
@@ -366,16 +364,16 @@ impl<R: Read> Read for Reader<R> {
                             header: false,
                         });
                     }
-                    try!(self.r.read_exact(&mut self.src[0..sn]));
-                    let dn = try!(decompress_len(&self.src));
+                    self.r.read_exact(&mut self.src[0..sn])?;
+                    let dn = decompress_len(&self.src)?;
                     if dn > self.dst.len() {
                         fail!(Error::UnsupportedChunkLength {
                             len: dn as u64,
                             header: false,
                         });
                     }
-                    try!(self.dec.decompress(
-                        &self.src[0..sn], &mut self.dst[0..dn]));
+                    self.dec
+                        .decompress(&self.src[0..sn], &mut self.dst[0..dn])?;
                     let got_sum = crc32c_masked(&self.dst[0..dn]);
                     if expected_sum != got_sum {
                         fail!(Error::Checksum {

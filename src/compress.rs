@@ -5,15 +5,15 @@ use byteorder::{ByteOrder, LittleEndian as LE};
 
 use error::{Error, Result};
 use varint::write_varu64;
-use {MAX_INPUT_SIZE, MAX_BLOCK_SIZE};
+use {MAX_BLOCK_SIZE, MAX_INPUT_SIZE};
 
 /// The total number of slots we permit for our hash table of 4 byte repeat
 /// sequences.
-const MAX_TABLE_SIZE: usize = 1<<14;
+const MAX_TABLE_SIZE: usize = 1 << 14;
 
 /// The size of a small hash table. This is useful for reducing overhead when
 /// compressing very small blocks of bytes.
-const SMALL_TABLE_SIZE: usize = 1<<10;
+const SMALL_TABLE_SIZE: usize = 1 << 10;
 
 /// The total number of bytes that we always leave uncompressed at the end
 /// of the buffer. This in particular affords us some wiggle room during
@@ -91,11 +91,7 @@ impl Encoder {
     ///
     /// * The total number of bytes to compress exceeds `2^32 - 1`.
     /// * `output` has length less than `max_compress_len(input.len())`.
-    pub fn compress(
-        &mut self,
-        mut input: &[u8],
-        output: &mut [u8],
-    ) -> Result<usize> {
+    pub fn compress(&mut self, mut input: &[u8], output: &mut [u8]) -> Result<usize> {
         match max_compress_len(input.len()) {
             0 => {
                 return Err(Error::TooBig {
@@ -158,7 +154,7 @@ impl Encoder {
     /// `compress` does.
     pub fn compress_vec(&mut self, input: &[u8]) -> Result<Vec<u8>> {
         let mut buf = vec![0; max_compress_len(input.len())];
-        let n = try!(self.compress(input, &mut buf));
+        let n = self.compress(input, &mut buf)?;
         buf.truncate(n);
         Ok(buf)
     }
@@ -175,11 +171,7 @@ struct Block<'s, 'd> {
 
 impl<'s, 'd> Block<'s, 'd> {
     #[inline(always)]
-    fn new(
-        src: &'s [u8],
-        dst: &'d mut [u8],
-        d: usize,
-    ) -> Block<'s, 'd> {
+    fn new(src: &'s [u8], dst: &'d mut [u8], d: usize) -> Block<'s, 'd> {
         Block {
             src: src,
             s: 0,
@@ -345,9 +337,7 @@ impl<'s, 'd> Block<'s, 'd> {
         // If we can squeeze the last copy into a copy 1 operation, do it.
         if len <= 11 && offset <= 2047 {
             self.dst[self.d] =
-                (((offset >> 8) as u8) << 5)
-                | (((len - 4) as u8) << 2)
-                | (Tag::Copy1 as u8);
+                (((offset >> 8) as u8) << 5) | (((len - 4) as u8) << 2) | (Tag::Copy1 as u8);
             self.dst[self.d + 1] = offset as u8;
             self.d += 2;
         } else {
@@ -499,19 +489,18 @@ impl Encoder {
         // instead of putting a bigger one on the heap. This particular
         // optimization is important if the caller is using Snappy to compress
         // many small blocks. (The memset savings alone is considerable.)
-        let table: &mut [u16] =
-            if table_size <= SMALL_TABLE_SIZE {
-                &mut self.small[0..table_size]
-            } else {
-                if self.big.is_empty() {
-                    // Interestingly, using `self.big.resize` here led to some
-                    // very weird code getting generated that led to a large
-                    // slow down. Forcing the issue with a new vec seems to
-                    // fix it. ---AG
-                    self.big = vec![0; MAX_TABLE_SIZE];
-                }
-                &mut self.big[0..table_size]
-            };
+        let table: &mut [u16] = if table_size <= SMALL_TABLE_SIZE {
+            &mut self.small[0..table_size]
+        } else {
+            if self.big.is_empty() {
+                // Interestingly, using `self.big.resize` here led to some
+                // very weird code getting generated that led to a large
+                // slow down. Forcing the issue with a new vec seems to
+                // fix it. ---AG
+                self.big = vec![0; MAX_TABLE_SIZE];
+            }
+            &mut self.big[0..table_size]
+        };
         for x in &mut *table {
             *x = 0;
         }
@@ -531,19 +520,20 @@ impl<'a> BlockTable<'a> {
 
 impl<'a> Deref for BlockTable<'a> {
     type Target = [u16];
-    fn deref(&self) -> &[u16] { self.table }
+    fn deref(&self) -> &[u16] {
+        self.table
+    }
 }
 
 impl<'a> DerefMut for BlockTable<'a> {
-    fn deref_mut(&mut self) -> &mut [u16] { self.table }
+    fn deref_mut(&mut self) -> &mut [u16] {
+        self.table
+    }
 }
 
 unsafe fn loadu64(data: *const u8) -> u64 {
     let mut n: u64 = 0;
-    ptr::copy_nonoverlapping(
-        data,
-        &mut n as *mut u64 as *mut u8,
-        8);
+    ptr::copy_nonoverlapping(data, &mut n as *mut u64 as *mut u8, 8);
     n
 }
 
@@ -553,10 +543,7 @@ unsafe fn loadu64_le(data: *const u8) -> u64 {
 
 unsafe fn loadu32(data: *const u8) -> u32 {
     let mut n: u32 = 0;
-    ptr::copy_nonoverlapping(
-        data,
-        &mut n as *mut u32 as *mut u8,
-        4);
+    ptr::copy_nonoverlapping(data, &mut n as *mut u32 as *mut u8, 4);
     n
 }
 

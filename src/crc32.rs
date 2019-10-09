@@ -69,8 +69,8 @@ fn crc32c_slice16(mut buf: &[u8]) -> u32 {
             ^ tab16[11][buf[4] as usize]
             ^ tab16[12][(crc >> 24) as u8 as usize]
             ^ tab16[13][(crc >> 16) as u8 as usize]
-            ^ tab16[14][(crc >> 8 ) as u8 as usize]
-            ^ tab16[15][(crc      ) as u8 as usize];
+            ^ tab16[14][(crc >> 8) as u8 as usize]
+            ^ tab16[15][(crc) as u8 as usize];
         buf = &buf[16..];
     }
     for &b in buf {
@@ -92,8 +92,8 @@ fn crc32c_slice8(mut buf: &[u8]) -> u32 {
             ^ tab8[3][buf[4] as usize]
             ^ tab8[4][(crc >> 24) as u8 as usize]
             ^ tab8[5][(crc >> 16) as u8 as usize]
-            ^ tab8[6][(crc >> 8 ) as u8 as usize]
-            ^ tab8[7][(crc      ) as u8 as usize];
+            ^ tab8[6][(crc >> 8) as u8 as usize]
+            ^ tab8[7][(crc) as u8 as usize];
         buf = &buf[8..];
     }
     for &b in buf {
@@ -111,8 +111,8 @@ fn crc32c_slice4(mut buf: &[u8]) -> u32 {
         crc ^= LE::read_u32(&buf[0..4]);
         crc = tab4[0][(crc >> 24) as u8 as usize]
             ^ tab4[1][(crc >> 16) as u8 as usize]
-            ^ tab4[2][(crc >> 8 ) as u8 as usize]
-            ^ tab4[3][(crc      ) as u8 as usize];
+            ^ tab4[2][(crc >> 8) as u8 as usize]
+            ^ tab4[3][(crc) as u8 as usize];
         buf = &buf[4..];
     }
     for &b in buf {
