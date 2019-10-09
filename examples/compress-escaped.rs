@@ -28,7 +28,6 @@ fn press(bytes: &[u8]) -> Vec<u8> {
 
 fn frame_press(bytes: &[u8]) -> Vec<u8> {
     use snap::Writer;
-    use std::io::Write;
 
     let mut wtr = Writer::new(vec![]);
     wtr.write_all(bytes).unwrap();
