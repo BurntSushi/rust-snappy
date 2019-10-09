@@ -47,10 +47,6 @@ impl<W: ::std::any::Any> error::Error for IntoInnerError<W> {
     fn description(&self) -> &str {
         self.err.description()
     }
-
-    fn cause(&self) -> Option<&dyn error::Error> {
-        self.err.cause()
-    }
 }
 
 impl<W> fmt::Display for IntoInnerError<W> {
@@ -335,10 +331,6 @@ impl error::Error for Error {
             }
             Error::Checksum { .. } => "snappy: corrupt input (bad checksum)",
         }
-    }
-
-    fn cause(&self) -> Option<&dyn error::Error> {
-        None
     }
 }
 
