@@ -3,11 +3,11 @@ use std::io::{self, Read, Write};
 
 use byteorder::{ByteOrder, LittleEndian as LE, ReadBytesExt};
 
-use compress::{max_compress_len, Encoder};
-use crc32::crc32c;
-use decompress::{decompress_len, Decoder};
-use error::{new_into_inner_error, Error, IntoInnerError};
-use MAX_BLOCK_SIZE;
+use crate::compress::{max_compress_len, Encoder};
+use crate::crc32::crc32c;
+use crate::decompress::{decompress_len, Decoder};
+use crate::error::{new_into_inner_error, Error, IntoInnerError};
+use crate::MAX_BLOCK_SIZE;
 
 lazy_static! {
     static ref MAX_COMPRESS_BLOCK_SIZE: usize = max_compress_len(MAX_BLOCK_SIZE);

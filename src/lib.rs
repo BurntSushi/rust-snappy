@@ -95,10 +95,10 @@ extern crate rand;
 #[cfg(all(test, feature = "cpp"))]
 extern crate snappy_cpp;
 
-pub use compress::{max_compress_len, Encoder};
-pub use decompress::{decompress_len, Decoder};
-pub use error::{Error, IntoInnerError, Result};
-pub use frame::{Reader, Writer};
+pub use crate::compress::{max_compress_len, Encoder};
+pub use crate::decompress::{decompress_len, Decoder};
+pub use crate::error::{Error, IntoInnerError, Result};
+pub use crate::frame::{Reader, Writer};
 
 /// We don't permit compressing a block bigger than what can fit in a u32.
 const MAX_INPUT_SIZE: u64 = ::std::u32::MAX as u64;

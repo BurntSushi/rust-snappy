@@ -2,10 +2,10 @@ use std::ptr;
 
 use byteorder::{ByteOrder, LittleEndian as LE};
 
-use error::{Error, Result};
-use tag;
-use varint::read_varu64;
-use MAX_INPUT_SIZE;
+use crate::error::{Error, Result};
+use crate::tag;
+use crate::varint::read_varu64;
+use crate::MAX_INPUT_SIZE;
 
 /// A lookup table for quickly computing the various attributes derived from a
 /// tag byte.

@@ -3,9 +3,9 @@ use std::ptr;
 
 use byteorder::{ByteOrder, LittleEndian as LE};
 
-use error::{Error, Result};
-use varint::write_varu64;
-use {MAX_BLOCK_SIZE, MAX_INPUT_SIZE};
+use crate::error::{Error, Result};
+use crate::varint::write_varu64;
+use crate::{MAX_BLOCK_SIZE, MAX_INPUT_SIZE};
 
 /// The total number of slots we permit for our hash table of 4 byte repeat
 /// sequences.

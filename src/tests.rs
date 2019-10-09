@@ -2,7 +2,7 @@ use quickcheck::{QuickCheck, StdGen, TestResult};
 #[cfg(feature = "cpp")]
 use snappy_cpp as cpp;
 
-use {decompress_len, Decoder, Encoder, Error};
+use crate::{decompress_len, Decoder, Encoder, Error};
 
 // roundtrip is a macro that compresses the input, then decompresses the result
 // and compares it with the original input. If they are not equal, then the
@@ -529,7 +529,7 @@ fn depress(bytes: &[u8]) -> Vec<u8> {
 }
 
 fn frame_press(bytes: &[u8]) -> Vec<u8> {
-    use frame::Writer;
+    use crate::frame::Writer;
     use std::io::Write;
 
     let mut wtr = Writer::new(vec![]);
@@ -538,7 +538,7 @@ fn frame_press(bytes: &[u8]) -> Vec<u8> {
 }
 
 fn frame_depress(bytes: &[u8]) -> Vec<u8> {
-    use frame::Reader;
+    use crate::frame::Reader;
     use std::io::Read;
 
     let mut buf = vec![];
