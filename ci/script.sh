@@ -9,8 +9,8 @@ if [ "${TRAVIS_RUST_ARCHITECTURE}" = "i386" ]; then
 fi
 
 if [ "${RUST_TARGET}" = "i686-unknown-linux-gnu" ]; then
-  apt-get update
-  apt-get install -y gcc-multilib
+  sudo apt-get update
+  sudo apt-get install -y gcc-multilib
 fi
 
 rustup target add ${RUST_TARGET}
