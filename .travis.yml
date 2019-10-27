@@ -1,4 +1,7 @@
 language: rust
+env:
+  - TRAVIS_RUST_ARCHITECTURE=i386
+  - TRAVIS_RUST_ARCHITECTURE=amd64
 rust:
   - 1.21.0
   - stable

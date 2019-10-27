@@ -2,6 +2,12 @@
 
 set -ex
 
+if [[ "$TRAVIS_RUST_ARCHITECTURE" == "i386" ]]; then
+  apt-get update
+  apt-get install -y gcc-multilib
+  rustup target add i686-unknown-linux-gnu
+fi
+
 cargo build --verbose
 cargo doc --verbose
 
