@@ -84,7 +84,7 @@ pub fn compress_frame<'a>(
     // write uncompressed bytes instead. Since our buffer is at most
     // MAX_BLOCK_SIZE and our dst buffer has size
     // max_compress_len(MAX_BLOCK_SIZE), we have enough space.
-    let compress_len = try!(enc.compress(src, dst));
+    let compress_len = enc.compress(src, dst)?;
     let (chunk_type, chunk_len) =
         // We add 4 to the chunk_len because of the checksum.
         if compress_len >= src.len() - (src.len() / 8) {

@@ -117,10 +117,10 @@ impl<W: Write> Write for FrameEncoder<W> {
             } else if self.src.is_empty() {
                 // If buf is bigger than our entire buffer then avoid
                 // the indirection and write the buffer directly.
-                try!(self.inner.as_mut().unwrap().write(buf))
+                self.inner.as_mut().unwrap().write(buf)?
             } else {
                 self.src.extend_from_slice(&buf[0..free]);
-                try!(self.flush());
+                self.flush()?;
                 free
             };
             buf = &buf[n..];
@@ -140,7 +140,7 @@ impl<W: Write> Write for FrameEncoder<W> {
         if self.src.is_empty() {
             return Ok(());
         }
-        try!(self.inner.as_mut().unwrap().write(&self.src));
+        self.inner.as_mut().unwrap().write(&self.src)?;
         self.src.truncate(0);
         Ok(())
     }
@@ -151,7 +151,7 @@ impl<W: Write> Inner<W> {
         let mut total = 0;
         if !self.wrote_stream_ident {
             self.wrote_stream_ident = true;
-            try!(self.w.write_all(STREAM_IDENTIFIER));
+            self.w.write_all(STREAM_IDENTIFIER)?;
         }
         while !buf.is_empty() {
             // Advance buf and get our block.
@@ -161,15 +161,15 @@ impl<W: Write> Inner<W> {
             }
             buf = &buf[src.len()..];
 
-            let frame_data = try!(compress_frame(
+            let frame_data = compress_frame(
                 &mut self.enc,
                 src,
                 &mut self.chunk_header,
                 &mut self.dst,
                 false,
-            ));
-            try!(self.w.write_all(&self.chunk_header));
-            try!(self.w.write_all(frame_data));
+            )?;
+            self.w.write_all(&self.chunk_header)?;
+            self.w.write_all(frame_data)?;
             total += src.len();
         }
         Ok(total)

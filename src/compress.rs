@@ -155,7 +155,7 @@ impl Encoder {
     /// `compress` does.
     pub fn compress_vec(&mut self, input: &[u8]) -> Result<Vec<u8>> {
         let mut buf = vec![0; max_compress_len(input.len())];
-        let n = try!(self.compress(input, &mut buf));
+        let n = self.compress(input, &mut buf)?;
         buf.truncate(n);
         Ok(buf)
     }
