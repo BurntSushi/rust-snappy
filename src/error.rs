@@ -1,4 +1,3 @@
-use std::error;
 use std::fmt;
 use std::io;
 use std::result;
@@ -43,24 +42,16 @@ impl<W> IntoInnerError<W> {
     }
 }
 
-impl<W: ::std::any::Any> error::Error for IntoInnerError<W> {
-    fn description(&self) -> &str {
-        self.err.description()
-    }
-
-    fn cause(&self) -> Option<&error::Error> {
-        self.err.cause()
-    }
-}
+impl<W: std::any::Any> std::error::Error for IntoInnerError<W> {}
 
 impl<W> fmt::Display for IntoInnerError<W> {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         self.err.fmt(f)
     }
 }
 
 impl<W> fmt::Debug for IntoInnerError<W> {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         self.err.fmt(f)
     }
 }
@@ -194,8 +185,6 @@ impl From<Error> for io::Error {
 
 impl Eq for Error {}
 
-/// This implementation of `PartialEq` returns `false` when comparing two
-/// errors whose underlying type is `std::io::Error`.
 impl PartialEq for Error {
     fn eq(&self, other: &Error) -> bool {
         use self::Error::*;
@@ -253,61 +242,21 @@ impl PartialEq for Error {
     }
 }
 
-impl error::Error for Error {
-    fn description(&self) -> &str {
-        match *self {
-            Error::TooBig { .. } => "snappy: input buffer too big",
-            Error::BufferTooSmall { .. } => "snappy: output buffer too small",
-            Error::Empty => "snappy: corrupt input (empty)",
-            Error::Header => "snappy: corrupt input (invalid header)",
-            Error::HeaderMismatch { .. } => {
-                "snappy: corrupt input \
-                                             (header mismatch)"
-            }
-            Error::Literal { .. } => "snappy: corrupt input (bad literal)",
-            Error::CopyRead { .. } => "snappy: corrupt input (bad copy read)",
-            Error::CopyWrite { .. } => {
-                "snappy: corrupt input \
-                                        (bad copy write)"
-            }
-            Error::Offset { .. } => "snappy: corrupt input (bad offset)",
-            Error::StreamHeader { .. } => {
-                "snappy: corrupt input (missing stream header)"
-            }
-            Error::StreamHeaderMismatch { .. } => {
-                "snappy: corrupt input (stream header mismatch)"
-            }
-            Error::UnsupportedChunkType { .. } => {
-                "snappy: corrupt input (unsupported chunk type)"
-            }
-            Error::UnsupportedChunkLength { header: false, .. } => {
-                "snappy: corrupt input (unsupported chunk length)"
-            }
-            Error::UnsupportedChunkLength { header: true, .. } => {
-                "snappy: corrupt input (invalid stream header)"
-            }
-            Error::Checksum { .. } => "snappy: corrupt input (bad checksum)",
-        }
-    }
-
-    fn cause(&self) -> Option<&error::Error> {
-        None
-    }
-}
+impl std::error::Error for Error {}
 
 impl fmt::Display for Error {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match *self {
             Error::TooBig { given, max } => write!(
                 f,
                 "snappy: input buffer (size = {}) is larger than \
-                           allowed (size = {})",
+                         allowed (size = {})",
                 given, max
             ),
             Error::BufferTooSmall { given, min } => write!(
                 f,
                 "snappy: output buffer (size = {}) is smaller than \
-                           required (size = {})",
+                         required (size = {})",
                 given, min
             ),
             Error::Empty => write!(f, "snappy: corrupt input (empty)"),
@@ -317,43 +266,43 @@ impl fmt::Display for Error {
             Error::HeaderMismatch { expected_len, got_len } => write!(
                 f,
                 "snappy: corrupt input (header mismatch; expected \
-                           {} decompressed bytes but got {})",
+                         {} decompressed bytes but got {})",
                 expected_len, got_len
             ),
             Error::Literal { len, src_len, dst_len } => write!(
                 f,
                 "snappy: corrupt input (expected literal read of \
-                           length {}; remaining src: {}; remaining dst: {})",
+                         length {}; remaining src: {}; remaining dst: {})",
                 len, src_len, dst_len
             ),
             Error::CopyRead { len, src_len } => write!(
                 f,
                 "snappy: corrupt input (expected copy read of \
-                           length {}; remaining src: {})",
+                         length {}; remaining src: {})",
                 len, src_len
             ),
             Error::CopyWrite { len, dst_len } => write!(
                 f,
                 "snappy: corrupt input (expected copy write of \
-                           length {}; remaining dst: {})",
+                         length {}; remaining dst: {})",
                 len, dst_len
             ),
             Error::Offset { offset, dst_pos } => write!(
                 f,
                 "snappy: corrupt input (expected valid offset but \
-                           got offset {}; dst position: {})",
+                         got offset {}; dst position: {})",
                 offset, dst_pos
             ),
             Error::StreamHeader { byte } => write!(
                 f,
                 "snappy: corrupt input (expected stream header but \
-                           got unexpected chunk type byte {})",
+                         got unexpected chunk type byte {})",
                 byte
             ),
             Error::StreamHeaderMismatch { ref bytes } => write!(
                 f,
                 "snappy: corrupt input (expected sNaPpY stream \
-                           header but got {})",
+                         header but got {})",
                 escape(&**bytes)
             ),
             Error::UnsupportedChunkType { byte } => write!(
@@ -364,19 +313,19 @@ impl fmt::Display for Error {
             Error::UnsupportedChunkLength { len, header: false } => write!(
                 f,
                 "snappy: corrupt input \
-                           (unsupported chunk length: {})",
+                         (unsupported chunk length: {})",
                 len
             ),
             Error::UnsupportedChunkLength { len, header: true } => write!(
                 f,
                 "snappy: corrupt input \
-                           (invalid stream header length: {})",
+                         (invalid stream header length: {})",
                 len
             ),
             Error::Checksum { expected, got } => write!(
                 f,
                 "snappy: corrupt input (bad checksum; \
-                           expected: {}, got: {})",
+                         expected: {}, got: {})",
                 expected, got
             ),
         }

@@ -12,6 +12,7 @@ repository = "https://github.com/BurntSushi/rust-snappy"
 readme = "README.md"
 keywords = ["snappy", "compress", "compression", "decompress", "decompression"]
 license = "BSD-3-Clause"
+edition = "2018"
 
 [workspace]
 exclude = ["snappy-cpp"]

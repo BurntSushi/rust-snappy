@@ -1,7 +1,4 @@
-extern crate docopt;
-extern crate filetime;
-extern crate rustc_serialize;
-extern crate snap;
+use snap;
 
 use std::error;
 use std::fs::{self, File};
@@ -45,7 +42,7 @@ Options:
 
 type Result<T> = result::Result<T, Error>;
 
-type Error = Box<error::Error + Send + Sync>;
+type Error = Box<dyn error::Error + Send + Sync>;
 
 macro_rules! fail {
     ($($tt:tt)*) => {

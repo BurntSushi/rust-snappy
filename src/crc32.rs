@@ -23,6 +23,7 @@
 #![allow(dead_code)]
 
 use byteorder::{ByteOrder, LittleEndian as LE};
+use lazy_static::lazy_static;
 
 const CASTAGNOLI_POLY: u32 = 0x82f63b78;
 

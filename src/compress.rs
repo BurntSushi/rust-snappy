@@ -3,9 +3,9 @@ use std::ptr;
 
 use byteorder::{ByteOrder, LittleEndian as LE};
 
-use error::{Error, Result};
-use varint::write_varu64;
-use {MAX_BLOCK_SIZE, MAX_INPUT_SIZE};
+use crate::error::{Error, Result};
+use crate::varint::write_varu64;
+use crate::{MAX_BLOCK_SIZE, MAX_INPUT_SIZE};
 
 /// The total number of slots we permit for our hash table of 4 byte repeat
 /// sequences.
@@ -184,7 +184,7 @@ impl<'s, 'd> Block<'s, 'd> {
     }
 
     #[inline(always)]
-    fn compress(&mut self, mut table: BlockTable) {
+    fn compress(&mut self, mut table: BlockTable<'_>) {
         debug_assert!(!table.is_empty());
         debug_assert!(self.src.len() >= MIN_NON_LITERAL_BLOCK_SIZE);
 
@@ -480,7 +480,7 @@ struct BlockTable<'a> {
 }
 
 impl Encoder {
-    fn block_table(&mut self, block_size: usize) -> BlockTable {
+    fn block_table(&mut self, block_size: usize) -> BlockTable<'_> {
         let mut shift: u32 = 32 - 8;
         let mut table_size = 256;
         while table_size < MAX_TABLE_SIZE && table_size < block_size {

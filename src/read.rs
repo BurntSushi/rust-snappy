@@ -11,18 +11,20 @@ This module provides two `std::io::Read` implementations:
 Typically, `read::FrameDecoder` is the version that you'll want.
 */
 
-use byteorder::{ByteOrder, LittleEndian as LE, ReadBytesExt};
 use std::cmp;
 use std::io::{self, Read};
 
-use compress::Encoder;
-use decompress::{decompress_len, Decoder};
-use error::Error;
-use frame::{
+use byteorder::{ByteOrder, LittleEndian as LE, ReadBytesExt};
+use lazy_static::lazy_static;
+
+use crate::compress::Encoder;
+use crate::decompress::{decompress_len, Decoder};
+use crate::error::Error;
+use crate::frame::{
     compress_frame, crc32c_masked, ChunkType, CHUNK_HEADER_AND_CRC_SIZE,
     MAX_COMPRESS_BLOCK_SIZE, STREAM_BODY, STREAM_IDENTIFIER,
 };
-use MAX_BLOCK_SIZE;
+use crate::MAX_BLOCK_SIZE;
 
 /// A reader for decompressing a Snappy stream.
 ///
@@ -209,12 +211,13 @@ fn read_exact_eof<R: Read>(rdr: &mut R, buf: &mut [u8]) -> io::Result<bool> {
     }
 }
 
-/// The maximum block that `FrameEncoder` can output in a single read operation.
 lazy_static! {
-    static ref MAX_READ_FRAME_ENCODER_BLOCK_SIZE: usize = (STREAM_IDENTIFIER
+    /// The maximum block that `FrameEncoder` can output in a single read
+    /// operation.
+    static ref MAX_READ_FRAME_ENCODER_BLOCK_SIZE: usize = STREAM_IDENTIFIER
         .len()
         + CHUNK_HEADER_AND_CRC_SIZE
-        + *MAX_COMPRESS_BLOCK_SIZE);
+        + *MAX_COMPRESS_BLOCK_SIZE;
 }
 
 /// A reader for compressing data using snappy as it is read. Usually you'll

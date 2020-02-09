@@ -7,7 +7,7 @@ repository = "https://github.com/BurntSushi/snap"
 documentation = "https://docs.rs/snap"
 homepage = "https://github.com/BurntSushi/snap"
 description = "Simple Snappy C++ bindings for testing and benchmarking."
-build = "build.rs"
+edition = "2018"
 
 [dependencies]
 libc = "0.2"
