@@ -17,15 +17,11 @@ pub struct IntoInnerError<W> {
     err: io::Error,
 }
 
-/// Creates a new `IntoInnerError`.
-///
-/// (This is a visibility hack. It's public in this module, but not in the
-/// crate.)
-pub fn new_into_inner_error<W>(wtr: W, err: io::Error) -> IntoInnerError<W> {
-    IntoInnerError { wtr: wtr, err: err }
-}
-
 impl<W> IntoInnerError<W> {
+    pub(crate) fn new(wtr: W, err: io::Error) -> IntoInnerError<W> {
+        IntoInnerError { wtr, err }
+    }
+
     /// Returns the error which caused the call to `into_inner` to fail.
     ///
     /// This error was returned when attempting to flush the internal buffer.

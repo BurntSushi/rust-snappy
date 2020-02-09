@@ -1,3 +1,4 @@
+use std::fmt;
 use std::ops::{Deref, DerefMut};
 use std::ptr;
 
@@ -58,13 +59,22 @@ pub fn max_compress_len(input_len: usize) -> usize {
 /// Thie encoder does not use the Snappy frame format and simply compresses the
 /// given bytes in one big Snappy block (that is, it has a single header).
 ///
-/// Unless you explicitly need the low-level control, you should use `Writer`
+/// Unless you explicitly need the low-level control, you should use
+/// [`read::FrameEncoder`](../read/struct.FrameEncoder.html)
+/// or
+/// [`write::FrameEncoder`](../write/struct.FrameEncoder.html)
 /// instead, which compresses to the Snappy frame format.
 ///
-/// It is beneficial to reuse an Encoder.
+/// It is beneficial to reuse an Encoder when possible.
 pub struct Encoder {
     small: [u16; SMALL_TABLE_SIZE],
     big: Vec<u16>,
+}
+
+impl fmt::Debug for Encoder {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "Encoder(...)")
+    }
 }
 
 impl Encoder {

@@ -9,10 +9,11 @@ It would also be possible to provide a `write::FrameEncoder`, which decompresses
 data as it writes it, but it hasn't been implemented yet.
 */
 
+use std::fmt;
 use std::io::{self, Write};
 
 use crate::compress::Encoder;
-use crate::error::{new_into_inner_error, IntoInnerError};
+pub use crate::error::IntoInnerError;
 use crate::frame::{
     compress_frame, CHUNK_HEADER_AND_CRC_SIZE, MAX_COMPRESS_BLOCK_SIZE,
     STREAM_IDENTIFIER,
@@ -31,7 +32,7 @@ use crate::MAX_BLOCK_SIZE;
 ///
 /// The writer will be flushed automatically when it is dropped. If an error
 /// occurs, it is ignored.
-pub struct FrameEncoder<W: Write> {
+pub struct FrameEncoder<W: io::Write> {
     /// Our main internal state, split out for borrowck reasons (happily paid).
     ///
     /// Also, it's an `Option` so we can move out of it even though `Writer`
@@ -62,7 +63,7 @@ struct Inner<W> {
     chunk_header: [u8; 8],
 }
 
-impl<W: Write> FrameEncoder<W> {
+impl<W: io::Write> FrameEncoder<W> {
     /// Create a new writer for streaming Snappy compression.
     pub fn new(wtr: W) -> FrameEncoder<W> {
         FrameEncoder {
@@ -84,7 +85,7 @@ impl<W: Write> FrameEncoder<W> {
     pub fn into_inner(mut self) -> Result<W, IntoInnerError<FrameEncoder<W>>> {
         match self.flush() {
             Ok(()) => Ok(self.inner.take().unwrap().w),
-            Err(err) => Err(new_into_inner_error(self, err)),
+            Err(err) => Err(IntoInnerError::new(self, err)),
         }
     }
 
@@ -94,7 +95,7 @@ impl<W: Write> FrameEncoder<W> {
     }
 }
 
-impl<W: Write> Drop for FrameEncoder<W> {
+impl<W: io::Write> Drop for FrameEncoder<W> {
     fn drop(&mut self) {
         if self.inner.is_some() {
             // Ignore errors because we can't conceivably return an error and
@@ -104,7 +105,7 @@ impl<W: Write> Drop for FrameEncoder<W> {
     }
 }
 
-impl<W: Write> Write for FrameEncoder<W> {
+impl<W: io::Write> io::Write for FrameEncoder<W> {
     fn write(&mut self, mut buf: &[u8]) -> io::Result<usize> {
         let mut total = 0;
         // If there isn't enough room to add buf to src, then add only a piece
@@ -146,7 +147,7 @@ impl<W: Write> Write for FrameEncoder<W> {
     }
 }
 
-impl<W: Write> Inner<W> {
+impl<W: io::Write> Inner<W> {
     fn write(&mut self, mut buf: &[u8]) -> io::Result<usize> {
         let mut total = 0;
         if !self.wrote_stream_ident {
@@ -173,5 +174,26 @@ impl<W: Write> Inner<W> {
             total += src.len();
         }
         Ok(total)
+    }
+}
+
+impl<W: fmt::Debug + io::Write> fmt::Debug for FrameEncoder<W> {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        f.debug_struct("FrameEncoder")
+            .field("inner", &self.inner)
+            .field("src", &"[...]")
+            .finish()
+    }
+}
+
+impl<W: fmt::Debug + io::Write> fmt::Debug for Inner<W> {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        f.debug_struct("Inner")
+            .field("w", &self.w)
+            .field("enc", &self.enc)
+            .field("dst", &"[...]")
+            .field("wrote_stream_ident", &self.wrote_stream_ident)
+            .field("chunk_header", &self.chunk_header)
+            .finish()
     }
 }

@@ -42,8 +42,8 @@ pub fn decompress_len(input: &[u8]) -> Result<usize> {
 /// the given bytes as if it were returned from `Encoder`.
 ///
 /// Unless you explicitly need the low-level control, you should use
-/// `snap::read::FrameDecoder` instead, which decompresses the Snappy frame
-/// format.
+/// [`read::FrameDecoder`](../read/struct.FrameDecoder.html)
+/// instead, which decompresses the Snappy frame format.
 #[derive(Clone, Debug, Default)]
 pub struct Decoder {
     // Place holder for potential future fields.
