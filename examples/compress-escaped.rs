@@ -2,7 +2,6 @@
 
 /// compress-escaped is a utility program that accepts a single command line
 /// parameter, compresses it and prints it to stdout after escaping it.
-
 extern crate snap;
 
 use std::env;
@@ -12,8 +11,8 @@ use std::process;
 fn main() {
     let bytes = match env::args().nth(1) {
         None => {
-            writeln!(
-                &mut io::stderr(), "Usage: compress-escaped string").unwrap();
+            writeln!(&mut io::stderr(), "Usage: compress-escaped string")
+                .unwrap();
             process::exit(1);
         }
         Some(arg) => arg.into_bytes(),
@@ -29,8 +28,8 @@ fn press(bytes: &[u8]) -> Vec<u8> {
 }
 
 fn frame_press(bytes: &[u8]) -> Vec<u8> {
-    use std::io::Write;
     use snap::write;
+    use std::io::Write;
 
     let mut wtr = write::FrameEncoder::new(vec![]);
     wtr.write_all(bytes).unwrap();
@@ -38,8 +37,8 @@ fn frame_press(bytes: &[u8]) -> Vec<u8> {
 }
 
 fn frame_depress(bytes: &[u8]) -> Vec<u8> {
-    use std::io::Read;
     use snap::read;
+    use std::io::Read;
 
     let mut buf = vec![];
     read::FrameDecoder::new(bytes).read_to_end(&mut buf).unwrap();

@@ -11,7 +11,7 @@ use std::process;
 use std::result;
 
 use docopt::Docopt;
-use filetime::{FileTime, set_file_times};
+use filetime::{set_file_times, FileTime};
 
 const USAGE: &'static str = "
 szip works similarly to gzip. It takes files as parameters, compresses them to
@@ -67,8 +67,7 @@ struct Args {
 }
 
 fn main() {
-    let args: Args =
-        Docopt::new(USAGE)
+    let args: Args = Docopt::new(USAGE)
         .and_then(|d| d.version(Some(version())).decode())
         .unwrap_or_else(|e| e.exit());
     if let Err(err) = args.run() {
@@ -91,12 +90,11 @@ impl Args {
             }
         } else {
             for f in &self.arg_file {
-                let r =
-                    if self.flag_decompress {
-                        self.decompress_file(f)
-                    } else {
-                        self.compress_file(f)
-                    };
+                let r = if self.flag_decompress {
+                    self.decompress_file(f)
+                } else {
+                    self.compress_file(f)
+                };
                 if let Err(err) = r {
                     errln!("{}: {}", f, err);
                 }
@@ -140,7 +138,8 @@ impl Args {
                 if name.len() <= 3 || !name.ends_with(".sz") {
                     fail!("skipping uncompressed file");
                 }
-                old_path.with_file_name(format!("{}", &name[0..name.len()-3]))
+                old_path
+                    .with_file_name(format!("{}", &name[0..name.len() - 3]))
             }
         };
         if !self.flag_force && fs::metadata(&new_path).is_ok() {
@@ -194,10 +193,11 @@ impl Args {
     }
 }
 
-fn copy_atime_mtime<P, Q>(
-    src: P,
-    dst: Q,
-) -> Result<()> where P: AsRef<Path>, Q: AsRef<Path> {
+fn copy_atime_mtime<P, Q>(src: P, dst: Q) -> Result<()>
+where
+    P: AsRef<Path>,
+    Q: AsRef<Path>,
+{
     let md = try!(fs::metadata(src));
     let last_access = FileTime::from_last_access_time(&md);
     let last_mod = FileTime::from_last_modification_time(&md);
@@ -212,8 +212,9 @@ fn version() -> String {
         option_env!("CARGO_PKG_VERSION_PATCH"),
     );
     match (maj, min, pat) {
-        (Some(maj), Some(min), Some(pat)) =>
-            format!("{}.{}.{}", maj, min, pat),
+        (Some(maj), Some(min), Some(pat)) => {
+            format!("{}.{}.{}", maj, min, pat)
+        }
         _ => "".to_owned(),
     }
 }
