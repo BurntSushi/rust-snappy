@@ -11,15 +11,17 @@ This module provides two `std::io::Read` implementations:
 Typically, `read::FrameDecoder` is the version that you'll want.
 */
 
-use byteorder::{ReadBytesExt, ByteOrder, LittleEndian as LE};
+use byteorder::{ByteOrder, LittleEndian as LE, ReadBytesExt};
 use std::cmp;
 use std::io::{self, Read};
 
 use compress::Encoder;
-use decompress::{Decoder, decompress_len};
+use decompress::{decompress_len, Decoder};
 use error::Error;
-use frame::{CHUNK_HEADER_AND_CRC_SIZE, ChunkType, compress_frame, crc32c_masked,
-            MAX_COMPRESS_BLOCK_SIZE, STREAM_BODY, STREAM_IDENTIFIER};
+use frame::{
+    compress_frame, crc32c_masked, ChunkType, CHUNK_HEADER_AND_CRC_SIZE,
+    MAX_COMPRESS_BLOCK_SIZE, STREAM_BODY, STREAM_IDENTIFIER,
+};
 use MAX_BLOCK_SIZE;
 
 /// A reader for decompressing a Snappy stream.
@@ -76,7 +78,7 @@ impl<R: Read> Read for FrameDecoder<R> {
         macro_rules! fail {
             ($err:expr) => {
                 return Err(io::Error::from($err));
-            }
+            };
         }
         loop {
             if self.dsts < self.dste {
@@ -177,8 +179,9 @@ impl<R: Read> Read for FrameDecoder<R> {
                             header: false,
                         });
                     }
-                    try!(self.dec.decompress(
-                        &self.src[0..sn], &mut self.dst[0..dn]));
+                    try!(self
+                        .dec
+                        .decompress(&self.src[0..sn], &mut self.dst[0..dn]));
                     let got_sum = crc32c_masked(&self.dst[0..dn]);
                     if expected_sum != got_sum {
                         fail!(Error::Checksum {
@@ -209,10 +212,10 @@ fn read_exact_eof<R: Read>(rdr: &mut R, buf: &mut [u8]) -> io::Result<bool> {
 
 /// The maximum block that `FrameEncoder` can output in a single read operation.
 lazy_static! {
-    static ref MAX_READ_FRAME_ENCODER_BLOCK_SIZE: usize = (
-        STREAM_IDENTIFIER.len() + CHUNK_HEADER_AND_CRC_SIZE
-            + *MAX_COMPRESS_BLOCK_SIZE
-    );
+    static ref MAX_READ_FRAME_ENCODER_BLOCK_SIZE: usize = (STREAM_IDENTIFIER
+        .len()
+        + CHUNK_HEADER_AND_CRC_SIZE
+        + *MAX_COMPRESS_BLOCK_SIZE);
 }
 
 /// A reader for compressing data using snappy as it is read. Usually you'll
@@ -274,7 +277,7 @@ impl<R: Read> FrameEncoder<R> {
     fn read_from_dst(&mut self, buf: &mut [u8]) -> usize {
         let available_bytes = self.dste - self.dsts;
         let count = cmp::min(available_bytes, buf.len());
-        buf[..count].copy_from_slice(&self.dst[self.dsts..self.dsts+count]);
+        buf[..count].copy_from_slice(&self.dst[self.dsts..self.dsts + count]);
         self.dsts += count;
         count
     }
@@ -325,8 +328,7 @@ impl<R: Read> Inner<R> {
         // If we haven't yet written the stream header to `dst`, write it.
         let mut dst_write_start = 0;
         if !self.wrote_stream_ident {
-            dst[0..STREAM_IDENTIFIER.len()]
-                .copy_from_slice(STREAM_IDENTIFIER);
+            dst[0..STREAM_IDENTIFIER.len()].copy_from_slice(STREAM_IDENTIFIER);
             dst_write_start += STREAM_IDENTIFIER.len();
             self.wrote_stream_ident = true;
         }
@@ -334,8 +336,8 @@ impl<R: Read> Inner<R> {
         // Reserve space for our chunk header. We need to use `split_at_mut` so
         // that we can get two mutable slices pointing at non-overlapping parts
         // of `dst`.
-        let (chunk_header, remaining_dst) = dst[dst_write_start..]
-            .split_at_mut(CHUNK_HEADER_AND_CRC_SIZE);
+        let (chunk_header, remaining_dst) =
+            dst[dst_write_start..].split_at_mut(CHUNK_HEADER_AND_CRC_SIZE);
         dst_write_start += CHUNK_HEADER_AND_CRC_SIZE;
 
         // Compress our frame if possible, telling `compress_frame` to always

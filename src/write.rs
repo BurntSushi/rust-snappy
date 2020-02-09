@@ -12,9 +12,11 @@ data as it writes it, but it hasn't been implemented yet.
 use std::io::{self, Write};
 
 use compress::Encoder;
-use error::{IntoInnerError, new_into_inner_error};
-use frame::{CHUNK_HEADER_AND_CRC_SIZE, compress_frame, MAX_COMPRESS_BLOCK_SIZE,
-            STREAM_IDENTIFIER};
+use error::{new_into_inner_error, IntoInnerError};
+use frame::{
+    compress_frame, CHUNK_HEADER_AND_CRC_SIZE, MAX_COMPRESS_BLOCK_SIZE,
+    STREAM_IDENTIFIER,
+};
 use MAX_BLOCK_SIZE;
 
 /// A writer for compressing a Snappy stream.
@@ -110,18 +112,17 @@ impl<W: Write> Write for FrameEncoder<W> {
         loop {
             let free = self.src.capacity() - self.src.len();
             // n is the number of bytes extracted from buf.
-            let n =
-                if buf.len() <= free {
-                    break;
-                } else if self.src.is_empty() {
-                    // If buf is bigger than our entire buffer then avoid
-                    // the indirection and write the buffer directly.
-                    try!(self.inner.as_mut().unwrap().write(buf))
-                } else {
-                    self.src.extend_from_slice(&buf[0..free]);
-                    try!(self.flush());
-                    free
-                };
+            let n = if buf.len() <= free {
+                break;
+            } else if self.src.is_empty() {
+                // If buf is bigger than our entire buffer then avoid
+                // the indirection and write the buffer directly.
+                try!(self.inner.as_mut().unwrap().write(buf))
+            } else {
+                self.src.extend_from_slice(&buf[0..free]);
+                try!(self.flush());
+                free
+            };
             buf = &buf[n..];
             total += n;
         }

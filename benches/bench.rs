@@ -16,8 +16,7 @@ macro_rules! compress {
         fn $name(b: &mut ::test::Bencher) {
             lazy_static! {
                 static ref SRC: Vec<u8> = {
-                    let src =
-                        include_bytes!(concat!("../data/", $filename));
+                    let src = include_bytes!(concat!("../data/", $filename));
                     let mut src = &src[..];
                     if $size > 0 {
                         src = &src[0..$size];
@@ -27,9 +26,7 @@ macro_rules! compress {
             };
             let mut dst = vec![0; ::snap::max_compress_len(SRC.len())];
             b.bytes = SRC.len() as u64;
-            b.iter(|| {
-                $comp(SRC.as_slice(), &mut dst).unwrap()
-            });
+            b.iter(|| $comp(SRC.as_slice(), &mut dst).unwrap());
         }
     };
 }
@@ -43,30 +40,26 @@ macro_rules! decompress {
         fn $name(b: &mut ::test::Bencher) {
             lazy_static! {
                 static ref SRC: Vec<u8> = {
-                    let src =
-                        include_bytes!(concat!("../data/", $filename));
+                    let src = include_bytes!(concat!("../data/", $filename));
                     let mut src = &src[..];
                     if $size > 0 {
                         src = &src[0..$size];
                     }
                     src.to_owned()
                 };
-                static ref COMPRESSED: Vec<u8> = {
-                    ::snap::Encoder::new().compress_vec(&*SRC).unwrap()
-                };
+                static ref COMPRESSED: Vec<u8> =
+                    { ::snap::Encoder::new().compress_vec(&*SRC).unwrap() };
             };
 
             let mut dst = vec![0; SRC.len()];
             b.bytes = SRC.len() as u64;
-            b.iter(|| {
-                $dec(COMPRESSED.as_slice(), &mut dst).unwrap()
-            });
+            b.iter(|| $dec(COMPRESSED.as_slice(), &mut dst).unwrap());
         }
     };
 }
 
 mod rust {
-    use snap::{Encoder, Decoder, Result};
+    use snap::{Decoder, Encoder, Result};
 
     #[inline(always)]
     fn compress(input: &[u8], output: &mut [u8]) -> Result<usize> {

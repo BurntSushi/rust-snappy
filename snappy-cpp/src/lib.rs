@@ -18,13 +18,16 @@ pub fn compress(src: &[u8], dst: &mut [u8]) -> Result<usize, String> {
         if dst.len() < dst_len {
             return Err(format!(
                 "destination buffer too small ({} < {})",
-                dst.len(), dst_len));
+                dst.len(),
+                dst_len
+            ));
         }
         snappy_compress(
             src.as_ptr(),
             src.len(),
             dst.as_mut_ptr(),
-            &mut dst_len);
+            &mut dst_len,
+        );
         Ok(dst_len)
     }
 }
@@ -37,16 +40,23 @@ pub fn decompress(src: &[u8], dst: &mut [u8]) -> Result<usize, String> {
     unsafe {
         let mut dst_len = 0;
         snappy_uncompressed_length(
-            src.as_ptr(), src.len() as size_t, &mut dst_len);
+            src.as_ptr(),
+            src.len() as size_t,
+            &mut dst_len,
+        );
         if dst.len() < dst_len {
             return Err(format!(
-                "destination buffer too small ({} < {})", dst.len(), dst_len));
+                "destination buffer too small ({} < {})",
+                dst.len(),
+                dst_len
+            ));
         }
         let r = snappy_uncompress(
             src.as_ptr(),
             src.len(),
             dst.as_mut_ptr(),
-            &mut dst_len);
+            &mut dst_len,
+        );
         if r == 0 {
             Ok(dst_len)
         } else {
@@ -55,7 +65,7 @@ pub fn decompress(src: &[u8], dst: &mut [u8]) -> Result<usize, String> {
     }
 }
 
-extern {
+extern "C" {
     fn snappy_compress(
         input: *const u8,
         input_len: size_t,

@@ -1,6 +1,6 @@
 use byteorder::{ByteOrder, LittleEndian as LE};
 
-use compress::{Encoder, max_compress_len};
+use compress::{max_compress_len, Encoder};
 use crc32::crc32c;
 use error::Error;
 use MAX_BLOCK_SIZE;

@@ -200,55 +200,54 @@ impl PartialEq for Error {
     fn eq(&self, other: &Error) -> bool {
         use self::Error::*;
         match (self, other) {
-            (&TooBig { given: given1, max: max1 },
-             &TooBig { given: given2, max: max2 }) => {
-                (given1, max1) == (given2, max2)
-            }
-            (&BufferTooSmall { given: given1, min: min1 },
-             &BufferTooSmall { given: given2, min: min2 }) => {
-                (given1, min1) == (given2, min2)
-            }
-            (&Empty, &Empty) |
-            (&Header, &Header) => true,
-            (&HeaderMismatch { expected_len: elen1, got_len: glen1 },
-             &HeaderMismatch { expected_len: elen2, got_len: glen2 }) => {
-                (elen1, glen1) == (elen2, glen2)
-            }
-            (&Literal { len: len1, src_len: src_len1, dst_len: dst_len1 },
-             &Literal { len: len2, src_len: src_len2, dst_len: dst_len2 }) => {
-                (len1, src_len1, dst_len1) == (len2, src_len2, dst_len2)
-            }
-            (&CopyRead { len: len1, src_len: src_len1 },
-             &CopyRead { len: len2, src_len: src_len2 }) => {
-                (len1, src_len1) == (len2, src_len2)
-            }
-            (&CopyWrite { len: len1, dst_len: dst_len1 },
-             &CopyWrite { len: len2, dst_len: dst_len2 }) => {
-                (len1, dst_len1) == (len2, dst_len2)
-            }
-            (&Offset { offset: offset1, dst_pos: dst_pos1 },
-             &Offset { offset: offset2, dst_pos: dst_pos2 }) => {
-                (offset1, dst_pos1) == (offset2, dst_pos2)
-            }
+            (
+                &TooBig { given: given1, max: max1 },
+                &TooBig { given: given2, max: max2 },
+            ) => (given1, max1) == (given2, max2),
+            (
+                &BufferTooSmall { given: given1, min: min1 },
+                &BufferTooSmall { given: given2, min: min2 },
+            ) => (given1, min1) == (given2, min2),
+            (&Empty, &Empty) | (&Header, &Header) => true,
+            (
+                &HeaderMismatch { expected_len: elen1, got_len: glen1 },
+                &HeaderMismatch { expected_len: elen2, got_len: glen2 },
+            ) => (elen1, glen1) == (elen2, glen2),
+            (
+                &Literal { len: len1, src_len: src_len1, dst_len: dst_len1 },
+                &Literal { len: len2, src_len: src_len2, dst_len: dst_len2 },
+            ) => (len1, src_len1, dst_len1) == (len2, src_len2, dst_len2),
+            (
+                &CopyRead { len: len1, src_len: src_len1 },
+                &CopyRead { len: len2, src_len: src_len2 },
+            ) => (len1, src_len1) == (len2, src_len2),
+            (
+                &CopyWrite { len: len1, dst_len: dst_len1 },
+                &CopyWrite { len: len2, dst_len: dst_len2 },
+            ) => (len1, dst_len1) == (len2, dst_len2),
+            (
+                &Offset { offset: offset1, dst_pos: dst_pos1 },
+                &Offset { offset: offset2, dst_pos: dst_pos2 },
+            ) => (offset1, dst_pos1) == (offset2, dst_pos2),
             (&StreamHeader { byte: byte1 }, &StreamHeader { byte: byte2 }) => {
                 byte1 == byte2
             }
-            (&StreamHeaderMismatch { bytes: ref bytes1 },
-             &StreamHeaderMismatch { bytes: ref bytes2 }) => {
-                bytes1 == bytes2
-            }
-            (&UnsupportedChunkType { byte: byte1 },
-             &UnsupportedChunkType { byte: byte2 }) => {
-                byte1 == byte2
-            }
-            (&UnsupportedChunkLength { len: len1, header: header1 },
-             &UnsupportedChunkLength { len: len2, header: header2 }) => {
-                (len1, header1) == (len2, header2)
-            }
-            (&Checksum { expected: e1, got: g1 },
-             &Checksum { expected: e2, got: g2 }) => {
-                (e1, g1) == (e2, g2)
-            }
+            (
+                &StreamHeaderMismatch { bytes: ref bytes1 },
+                &StreamHeaderMismatch { bytes: ref bytes2 },
+            ) => bytes1 == bytes2,
+            (
+                &UnsupportedChunkType { byte: byte1 },
+                &UnsupportedChunkType { byte: byte2 },
+            ) => byte1 == byte2,
+            (
+                &UnsupportedChunkLength { len: len1, header: header1 },
+                &UnsupportedChunkLength { len: len2, header: header2 },
+            ) => (len1, header1) == (len2, header2),
+            (
+                &Checksum { expected: e1, got: g1 },
+                &Checksum { expected: e2, got: g2 },
+            ) => (e1, g1) == (e2, g2),
             _ => false,
         }
     }
@@ -261,12 +260,16 @@ impl error::Error for Error {
             Error::BufferTooSmall { .. } => "snappy: output buffer too small",
             Error::Empty => "snappy: corrupt input (empty)",
             Error::Header => "snappy: corrupt input (invalid header)",
-            Error::HeaderMismatch { .. } => "snappy: corrupt input \
-                                             (header mismatch)",
+            Error::HeaderMismatch { .. } => {
+                "snappy: corrupt input \
+                                             (header mismatch)"
+            }
             Error::Literal { .. } => "snappy: corrupt input (bad literal)",
             Error::CopyRead { .. } => "snappy: corrupt input (bad copy read)",
-            Error::CopyWrite { .. } => "snappy: corrupt input \
-                                        (bad copy write)",
+            Error::CopyWrite { .. } => {
+                "snappy: corrupt input \
+                                        (bad copy write)"
+            }
             Error::Offset { .. } => "snappy: corrupt input (bad offset)",
             Error::StreamHeader { .. } => {
                 "snappy: corrupt input (missing stream header)"
@@ -295,66 +298,87 @@ impl error::Error for Error {
 impl fmt::Display for Error {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match *self {
-            Error::TooBig { given, max } => {
-                write!(f, "snappy: input buffer (size = {}) is larger than \
-                           allowed (size = {})", given, max)
-            }
-            Error::BufferTooSmall { given, min } => {
-                write!(f, "snappy: output buffer (size = {}) is smaller than \
-                           required (size = {})", given, min)
-            }
-            Error::Empty => {
-                write!(f, "snappy: corrupt input (empty)")
-            }
+            Error::TooBig { given, max } => write!(
+                f,
+                "snappy: input buffer (size = {}) is larger than \
+                           allowed (size = {})",
+                given, max
+            ),
+            Error::BufferTooSmall { given, min } => write!(
+                f,
+                "snappy: output buffer (size = {}) is smaller than \
+                           required (size = {})",
+                given, min
+            ),
+            Error::Empty => write!(f, "snappy: corrupt input (empty)"),
             Error::Header => {
                 write!(f, "snappy: corrupt input (invalid header)")
             }
-            Error::HeaderMismatch { expected_len, got_len } => {
-                write!(f, "snappy: corrupt input (header mismatch; expected \
+            Error::HeaderMismatch { expected_len, got_len } => write!(
+                f,
+                "snappy: corrupt input (header mismatch; expected \
                            {} decompressed bytes but got {})",
-                           expected_len, got_len)
-            }
-            Error::Literal { len, src_len, dst_len } => {
-                write!(f, "snappy: corrupt input (expected literal read of \
+                expected_len, got_len
+            ),
+            Error::Literal { len, src_len, dst_len } => write!(
+                f,
+                "snappy: corrupt input (expected literal read of \
                            length {}; remaining src: {}; remaining dst: {})",
-                       len, src_len, dst_len)
-            }
-            Error::CopyRead { len, src_len } => {
-                write!(f, "snappy: corrupt input (expected copy read of \
-                           length {}; remaining src: {})", len, src_len)
-            }
-            Error::CopyWrite { len, dst_len } => {
-                write!(f, "snappy: corrupt input (expected copy write of \
-                           length {}; remaining dst: {})", len, dst_len)
-            }
-            Error::Offset { offset, dst_pos } => {
-                write!(f, "snappy: corrupt input (expected valid offset but \
-                           got offset {}; dst position: {})", offset, dst_pos)
-            }
-            Error::StreamHeader { byte } => {
-                write!(f, "snappy: corrupt input (expected stream header but \
-                           got unexpected chunk type byte {})", byte)
-            }
-            Error::StreamHeaderMismatch { ref bytes } => {
-                write!(f, "snappy: corrupt input (expected sNaPpY stream \
-                           header but got {})", escape(&**bytes))
-            }
-            Error::UnsupportedChunkType { byte } => {
-                write!(f, "snappy: corrupt input (unsupported chunk type: {})",
-                       byte)
-            }
-            Error::UnsupportedChunkLength { len, header: false } => {
-                write!(f, "snappy: corrupt input \
-                           (unsupported chunk length: {})", len)
-            }
-            Error::UnsupportedChunkLength { len, header: true } => {
-                write!(f, "snappy: corrupt input \
-                           (invalid stream header length: {})", len)
-            }
-            Error::Checksum { expected, got } => {
-                write!(f, "snappy: corrupt input (bad checksum; \
-                           expected: {}, got: {})", expected, got)
-            }
+                len, src_len, dst_len
+            ),
+            Error::CopyRead { len, src_len } => write!(
+                f,
+                "snappy: corrupt input (expected copy read of \
+                           length {}; remaining src: {})",
+                len, src_len
+            ),
+            Error::CopyWrite { len, dst_len } => write!(
+                f,
+                "snappy: corrupt input (expected copy write of \
+                           length {}; remaining dst: {})",
+                len, dst_len
+            ),
+            Error::Offset { offset, dst_pos } => write!(
+                f,
+                "snappy: corrupt input (expected valid offset but \
+                           got offset {}; dst position: {})",
+                offset, dst_pos
+            ),
+            Error::StreamHeader { byte } => write!(
+                f,
+                "snappy: corrupt input (expected stream header but \
+                           got unexpected chunk type byte {})",
+                byte
+            ),
+            Error::StreamHeaderMismatch { ref bytes } => write!(
+                f,
+                "snappy: corrupt input (expected sNaPpY stream \
+                           header but got {})",
+                escape(&**bytes)
+            ),
+            Error::UnsupportedChunkType { byte } => write!(
+                f,
+                "snappy: corrupt input (unsupported chunk type: {})",
+                byte
+            ),
+            Error::UnsupportedChunkLength { len, header: false } => write!(
+                f,
+                "snappy: corrupt input \
+                           (unsupported chunk length: {})",
+                len
+            ),
+            Error::UnsupportedChunkLength { len, header: true } => write!(
+                f,
+                "snappy: corrupt input \
+                           (invalid stream header length: {})",
+                len
+            ),
+            Error::Checksum { expected, got } => write!(
+                f,
+                "snappy: corrupt input (bad checksum; \
+                           expected: {}, got: {})",
+                expected, got
+            ),
         }
     }
 }
