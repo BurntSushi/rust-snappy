@@ -10,6 +10,7 @@ homepage = "https://github.com/BurntSushi/rust-snappy"
 repository = "https://github.com/BurntSushi/rust-snappy"
 keywords = ["snappy", "compress", "compression", "decompress", "decompression"]
 license = "BSD-3-Clause"
+edition = "2018"
 
 [[bin]]
 name = "szip"

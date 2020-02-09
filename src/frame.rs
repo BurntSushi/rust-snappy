@@ -1,9 +1,10 @@
 use byteorder::{ByteOrder, LittleEndian as LE};
+use lazy_static::lazy_static;
 
-use compress::{max_compress_len, Encoder};
-use crc32::crc32c;
-use error::Error;
-use MAX_BLOCK_SIZE;
+use crate::compress::{max_compress_len, Encoder};
+use crate::crc32::crc32c;
+use crate::error::Error;
+use crate::MAX_BLOCK_SIZE;
 
 lazy_static! {
     pub static ref MAX_COMPRESS_BLOCK_SIZE: usize =

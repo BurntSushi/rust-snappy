@@ -4,8 +4,6 @@ This library provides zero-overhead bindings to Google's Snappy C++ library.
 These bindings should only be used in testing and benchmarks.
 */
 
-extern crate libc;
-
 use libc::{c_int, size_t};
 
 /// Compress the bytes in `src` into `dst`. `dst` must be big enough to

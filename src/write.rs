@@ -11,13 +11,13 @@ data as it writes it, but it hasn't been implemented yet.
 
 use std::io::{self, Write};
 
-use compress::Encoder;
-use error::{new_into_inner_error, IntoInnerError};
-use frame::{
+use crate::compress::Encoder;
+use crate::error::{new_into_inner_error, IntoInnerError};
+use crate::frame::{
     compress_frame, CHUNK_HEADER_AND_CRC_SIZE, MAX_COMPRESS_BLOCK_SIZE,
     STREAM_IDENTIFIER,
 };
-use MAX_BLOCK_SIZE;
+use crate::MAX_BLOCK_SIZE;
 
 /// A writer for compressing a Snappy stream.
 ///

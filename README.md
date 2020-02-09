@@ -27,20 +27,12 @@ Add this to your `Cargo.toml`:
 snap = "0.2"
 ```
 
-and this to your crate root:
-
-```rust
-extern crate snap;
-```
-
 ### Example: compress data on `stdin`
 
 This program reads data from `stdin`, compresses it and emits it to `stdout`.
 This example can be found in `examples/compress.rs`:
 
 ```rust
-extern crate snap;
-
 use std::io;
 
 fn main() {
@@ -60,8 +52,6 @@ This program reads data from `stdin`, decompresses it and emits it to `stdout`.
 This example can be found in `examples/decompress.rs`:
 
 ```rust
-extern crate snap;
-
 use std::io;
 
 fn main() {

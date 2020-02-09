@@ -1,10 +1,5 @@
 #![feature(test)]
 
-#[macro_use]
-extern crate lazy_static;
-extern crate snap;
-#[cfg(feature = "cpp")]
-extern crate snappy_cpp;
 extern crate test;
 
 macro_rules! compress {
@@ -13,7 +8,7 @@ macro_rules! compress {
     };
     ($comp:expr, $name:ident, $filename:expr, $size:expr) => {
         #[bench]
-        fn $name(b: &mut ::test::Bencher) {
+        fn $name(b: &mut test::Bencher) {
             lazy_static! {
                 static ref SRC: Vec<u8> = {
                     let src = include_bytes!(concat!("../data/", $filename));
@@ -24,7 +19,7 @@ macro_rules! compress {
                     src.to_owned()
                 };
             };
-            let mut dst = vec![0; ::snap::max_compress_len(SRC.len())];
+            let mut dst = vec![0; snap::max_compress_len(SRC.len())];
             b.bytes = SRC.len() as u64;
             b.iter(|| $comp(SRC.as_slice(), &mut dst).unwrap());
         }
@@ -37,7 +32,7 @@ macro_rules! decompress {
     };
     ($dec:expr, $name:ident, $filename:expr, $size:expr) => {
         #[bench]
-        fn $name(b: &mut ::test::Bencher) {
+        fn $name(b: &mut test::Bencher) {
             lazy_static! {
                 static ref SRC: Vec<u8> = {
                     let src = include_bytes!(concat!("../data/", $filename));
@@ -48,7 +43,7 @@ macro_rules! decompress {
                     src.to_owned()
                 };
                 static ref COMPRESSED: Vec<u8> =
-                    { ::snap::Encoder::new().compress_vec(&*SRC).unwrap() };
+                    { snap::Encoder::new().compress_vec(&*SRC).unwrap() };
             };
 
             let mut dst = vec![0; SRC.len()];
@@ -59,6 +54,7 @@ macro_rules! decompress {
 }
 
 mod rust {
+    use lazy_static::lazy_static;
     use snap::{Decoder, Encoder, Result};
 
     #[inline(always)]
@@ -100,6 +96,7 @@ mod rust {
 
 #[cfg(feature = "cpp")]
 mod cpp {
+    use lazy_static::lazy_static;
     use snappy_cpp::{compress, decompress};
 
     compress!(compress, zflat00_html, "html");
