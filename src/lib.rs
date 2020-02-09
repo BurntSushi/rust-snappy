@@ -21,16 +21,21 @@ snap = "0.2"
 # Overview
 
 This crate provides two ways to use Snappy. The first way is through the
-`snap::read::FrameDecoder` and `snap::write::FrameEncoder` types, which
-implement the `std::io::Read` and `std::io::Write` traits with the Snappy frame
-format. Unless you have a specific reason to the contrary, you should only
-use the Snappy frame format. Specifically, the Snappy frame format permits
-streaming compression or decompression.
+[`read::FrameDecoder`](read/struct.FrameDecoder.html)
+and
+[`write::FrameEncoder`](write/struct.FrameEncoder.html)
+types, which implement the `std::io::Read` and `std::io::Write` traits with the
+Snappy frame format. Unless you have a specific reason to the contrary, you
+should only use the Snappy frame format. Specifically, the Snappy frame format
+permits streaming compression or decompression.
 
-The second way is through the `Decoder` and `Encoder` types. These types
-provide lower level control to the raw Snappy format, and don't support a
-streaming interface directly. You should only use these types if you know you
-specifically need the Snappy raw format.
+The second way is through the
+[`raw::Decoder`](raw/struct.Decoder.html)
+and
+[`raw::Encoder`](raw/struct.Encoder.html)
+types. These types provide lower level control to the raw Snappy format, and
+don't support a streaming interface directly. You should only use these types
+if you know you specifically need the Snappy raw format.
 
 Finally, the `Error` type in this crate provides an exhaustive list of error
 conditions that are probably useless in most circumstances. Therefore,
@@ -79,12 +84,10 @@ fn main() {
 
 #![deny(missing_docs)]
 
-pub use crate::compress::{max_compress_len, Encoder};
-pub use crate::decompress::{decompress_len, Decoder};
-pub use crate::error::{Error, IntoInnerError, Result};
+pub use crate::error::{Error, Result};
 
 /// We don't permit compressing a block bigger than what can fit in a u32.
-const MAX_INPUT_SIZE: u64 = ::std::u32::MAX as u64;
+const MAX_INPUT_SIZE: u64 = std::u32::MAX as u64;
 
 /// The maximum number of bytes that we process at once. A block is the unit
 /// at which we scan for candidates for compression.
@@ -95,6 +98,7 @@ mod crc32;
 mod decompress;
 mod error;
 mod frame;
+pub mod raw;
 pub mod read;
 mod tag;
 #[cfg(test)]

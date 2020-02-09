@@ -1,18 +1,21 @@
 /*!
 This module provides two `std::io::Read` implementations:
 
-- `read::FrameDecoder` wraps another `std::io::Read` implemenation, and
-  decompresses data encoded using the Snappy frame format. Use this
-  if you have a compressed data source and wish to read it as uncompressed data.
-- `read::FrameEncoder` wraps another `std::io::Read` implemenation, and
-  compresses data encoded using the Snappy frame format. Use this if you have
-  uncompressed data source and wish to read it as compressed data.
+* [`read::FrameDecoder`](struct.FrameDecoder.html)
+  wraps another `std::io::Read` implemenation, and decompresses data encoded
+  using the Snappy frame format. Use this if you have a compressed data source
+  and wish to read it as uncompressed data.
+* [`read::FrameEncoder`](struct.FrameEncoder.html)
+  wraps another `std::io::Read` implemenation, and compresses data encoded
+  using the Snappy frame format. Use this if you have uncompressed data source
+  and wish to read it as compressed data.
 
 Typically, `read::FrameDecoder` is the version that you'll want.
 */
 
 use std::cmp;
-use std::io::{self, Read};
+use std::fmt;
+use std::io;
 
 use byteorder::{ByteOrder, LittleEndian as LE, ReadBytesExt};
 use lazy_static::lazy_static;
@@ -26,17 +29,26 @@ use crate::frame::{
 };
 use crate::MAX_BLOCK_SIZE;
 
+lazy_static! {
+    /// The maximum block that `FrameEncoder` can output in a single read
+    /// operation.
+    static ref MAX_READ_FRAME_ENCODER_BLOCK_SIZE: usize = STREAM_IDENTIFIER
+        .len()
+        + CHUNK_HEADER_AND_CRC_SIZE
+        + *MAX_COMPRESS_BLOCK_SIZE;
+}
+
 /// A reader for decompressing a Snappy stream.
 ///
-/// This `FrameDecoder` wraps any other reader that implements `io::Read`. Bytes
-/// read from this reader are decompressed using the
+/// This `FrameDecoder` wraps any other reader that implements `std::io::Read`.
+/// Bytes read from this reader are decompressed using the
 /// [Snappy frame format](https://github.com/google/snappy/blob/master/framing_format.txt)
 /// (file extension `sz`, MIME type `application/x-snappy-framed`).
 ///
 /// This reader can potentially make many small reads from the underlying
 /// stream depending on its format, therefore, passing in a buffered reader
 /// may be beneficial.
-pub struct FrameDecoder<R: Read> {
+pub struct FrameDecoder<R: io::Read> {
     /// The underlying reader.
     r: R,
     /// A Snappy decoder that we reuse that does the actual block based
@@ -55,7 +67,7 @@ pub struct FrameDecoder<R: Read> {
     read_stream_ident: bool,
 }
 
-impl<R: Read> FrameDecoder<R> {
+impl<R: io::Read> FrameDecoder<R> {
     /// Create a new reader for streaming Snappy decompression.
     pub fn new(rdr: R) -> FrameDecoder<R> {
         FrameDecoder {
@@ -75,7 +87,7 @@ impl<R: Read> FrameDecoder<R> {
     }
 }
 
-impl<R: Read> Read for FrameDecoder<R> {
+impl<R: io::Read> io::Read for FrameDecoder<R> {
     fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
         macro_rules! fail {
             ($err:expr) => {
@@ -198,62 +210,61 @@ impl<R: Read> Read for FrameDecoder<R> {
     }
 }
 
-// read_exact_eof is like Read::read_exact, except it converts an UnexpectedEof
-// error to a bool of false.
-//
-// If no error occurred, then this returns true.
-fn read_exact_eof<R: Read>(rdr: &mut R, buf: &mut [u8]) -> io::Result<bool> {
-    use std::io::ErrorKind::UnexpectedEof;
-    match rdr.read_exact(buf) {
-        Ok(()) => Ok(true),
-        Err(ref err) if err.kind() == UnexpectedEof => Ok(false),
-        Err(err) => Err(err),
+impl<R: fmt::Debug + io::Read> fmt::Debug for FrameDecoder<R> {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        f.debug_struct("FrameDecoder")
+            .field("r", &self.r)
+            .field("dec", &self.dec)
+            .field("src", &"[...]")
+            .field("dst", &"[...]")
+            .field("dsts", &self.dsts)
+            .field("dste", &self.dste)
+            .field("read_stream_ident", &self.read_stream_ident)
+            .finish()
     }
 }
 
-lazy_static! {
-    /// The maximum block that `FrameEncoder` can output in a single read
-    /// operation.
-    static ref MAX_READ_FRAME_ENCODER_BLOCK_SIZE: usize = STREAM_IDENTIFIER
-        .len()
-        + CHUNK_HEADER_AND_CRC_SIZE
-        + *MAX_COMPRESS_BLOCK_SIZE;
-}
-
-/// A reader for compressing data using snappy as it is read. Usually you'll
-/// want `snap::read::FrameDecoder` (for decompressing while reading) or
-/// `snap::write::FrameEncoder` (for compressing while writing) instead.
-pub struct FrameEncoder<R: Read> {
+/// A reader for compressing data using snappy as it is read.
+///
+/// This `FrameEncoder` wraps any other reader that implements `std::io::Read`.
+/// Bytes read from this reader are compressed using the
+/// [Snappy frame format](https://github.com/google/snappy/blob/master/framing_format.txt)
+/// (file extension `sz`, MIME type `application/x-snappy-framed`).
+///
+/// Usually you'll want
+/// [`read::FrameDecoder`](struct.FrameDecoder.html)
+/// (for decompressing while reading) or
+/// [`write::FrameEncoder`](../write/struct.FrameEncoder.html)
+/// (for compressing while writing) instead.
+///
+/// Unlike `FrameDecoder`, this will attempt to make large reads roughly
+/// equivalent to the size of a single Snappy block. Therefore, callers may not
+/// benefit from using a buffered reader.
+pub struct FrameEncoder<R: io::Read> {
     /// Internally, we split `FrameEncoder` in two to keep the borrow checker
     /// happy. The `inner` member contains everything that `read_frame` needs
     /// to fetch a frame's worth of data and compress it.
     inner: Inner<R>,
-
     /// Data that we've encoded and are ready to return to our caller.
     dst: Vec<u8>,
-
     /// Starting point of bytes in `dst` not yet given back to the caller.
     dsts: usize,
-
     /// Ending point of bytes in `dst` that we want to give to our caller.
     dste: usize,
 }
 
-struct Inner<R: Read> {
+struct Inner<R: io::Read> {
     /// The underlying data source.
     r: R,
-
     /// An encoder that we reuse that does the actual block based compression.
     enc: Encoder,
-
     /// Data taken from the underlying `r`, and not yet compressed.
     src: Vec<u8>,
-
     /// Have we written the standard snappy header to `dst` yet?
     wrote_stream_ident: bool,
 }
 
-impl<R: Read> FrameEncoder<R> {
+impl<R: io::Read> FrameEncoder<R> {
     /// Create a new reader for streaming Snappy compression.
     pub fn new(rdr: R) -> FrameEncoder<R> {
         FrameEncoder {
@@ -285,7 +296,7 @@ impl<R: Read> FrameEncoder<R> {
     }
 }
 
-impl<R: Read> Read for FrameEncoder<R> {
+impl<R: io::Read> io::Read for FrameEncoder<R> {
     fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
         // Try reading previously compressed bytes from our `dst` buffer, if
         // any.
@@ -309,7 +320,7 @@ impl<R: Read> Read for FrameEncoder<R> {
     }
 }
 
-impl<R: Read> Inner<R> {
+impl<R: io::Read> Inner<R> {
     /// Read from `self.r`, and create a new frame, writing it to `dst`, which
     /// must be at least `*MAX_READ_FRAME_ENCODER_BLOCK_SIZE` bytes in size.
     fn read_frame(&mut self, dst: &mut [u8]) -> io::Result<usize> {
@@ -352,5 +363,43 @@ impl<R: Read> Inner<R> {
             true,
         )?;
         Ok(dst_write_start + frame_data.len())
+    }
+}
+
+impl<R: fmt::Debug + io::Read> fmt::Debug for FrameEncoder<R> {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        f.debug_struct("FrameEncoder")
+            .field("inner", &self.inner)
+            .field("dst", &"[...]")
+            .field("dsts", &self.dsts)
+            .field("dste", &self.dste)
+            .finish()
+    }
+}
+
+impl<R: fmt::Debug + io::Read> fmt::Debug for Inner<R> {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        f.debug_struct("Inner")
+            .field("r", &self.r)
+            .field("enc", &self.enc)
+            .field("src", &"[...]")
+            .field("wrote_stream_ident", &self.wrote_stream_ident)
+            .finish()
+    }
+}
+
+// read_exact_eof is like Read::read_exact, except it converts an UnexpectedEof
+// error to a bool of false.
+//
+// If no error occurred, then this returns true.
+fn read_exact_eof<R: io::Read>(
+    rdr: &mut R,
+    buf: &mut [u8],
+) -> io::Result<bool> {
+    use std::io::ErrorKind::UnexpectedEof;
+    match rdr.read_exact(buf) {
+        Ok(()) => Ok(true),
+        Err(ref err) if err.kind() == UnexpectedEof => Ok(false),
+        Err(err) => Err(err),
     }
 }

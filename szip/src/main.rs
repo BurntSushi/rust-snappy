@@ -51,7 +51,7 @@ macro_rules! fail {
 }
 
 macro_rules! errln {
-    ($($tt:tt)*) => { let _ = writeln!(&mut ::std::io::stderr(), $($tt)*); }
+    ($($tt:tt)*) => { let _ = writeln!(&mut std::io::stderr(), $($tt)*); }
 }
 
 #[derive(Debug, RustcDecodable)]
@@ -162,7 +162,7 @@ impl Args {
             // Read the entire src into memory and compress it.
             let mut buf = Vec::with_capacity(10 * (1 << 20));
             src.read_to_end(&mut buf)?;
-            let compressed = snap::Encoder::new().compress_vec(&buf)?;
+            let compressed = snap::raw::Encoder::new().compress_vec(&buf)?;
             dst.write_all(&compressed)?;
         } else {
             let mut dst = snap::write::FrameEncoder::new(dst);
@@ -180,7 +180,8 @@ impl Args {
             // Read the entire src into memory and decompress it.
             let mut buf = Vec::with_capacity(10 * (1 << 20));
             src.read_to_end(&mut buf)?;
-            let decompressed = snap::Decoder::new().decompress_vec(&buf)?;
+            let decompressed =
+                snap::raw::Decoder::new().decompress_vec(&buf)?;
             dst.write_all(&decompressed)?;
         } else {
             let mut src = snap::read::FrameDecoder::new(src);

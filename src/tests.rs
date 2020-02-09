@@ -2,7 +2,8 @@ use quickcheck::{QuickCheck, StdGen, TestResult};
 #[cfg(feature = "cpp")]
 use snappy_cpp as cpp;
 
-use crate::{decompress_len, Decoder, Encoder, Error};
+use crate::raw::{decompress_len, Decoder, Encoder};
+use crate::Error;
 
 // roundtrip is a macro that compresses the input, then decompresses the result
 // and compares it with the original input. If they are not equal, then the
@@ -514,17 +515,13 @@ fn qc_cmpcpp() {
 testerrored!(
     err_lit_len_overflow1,
     &b"\x11\x00\x00\xfc\xfe\xff\xff\xff"[..],
-    Error::Literal { len: ::std::u32::MAX as u64, src_len: 0, dst_len: 16 }
+    Error::Literal { len: std::u32::MAX as u64, src_len: 0, dst_len: 16 }
 );
 #[cfg(target_pointer_width = "32")]
 testerrored!(
     err_lit_len_overflow2,
     &b"\x11\x00\x00\xfc\xff\xff\xff\xff"[..],
-    Error::Literal {
-        len: ::std::u32::MAX as u64 + 1,
-        src_len: 0,
-        dst_len: 16,
-    }
+    Error::Literal { len: std::u32::MAX as u64 + 1, src_len: 0, dst_len: 16 }
 );
 
 // Helper functions.
