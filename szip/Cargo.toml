@@ -14,9 +14,12 @@ edition = "2018"
 
 [[bin]]
 name = "szip"
+path = "main.rs"
 
 [dependencies]
-docopt = "0.6"
-filetime = "0.1"
-rustc-serialize = "0.3"
+filetime = "0.2.8"
 snap = { path = "..", version = "0.2" }
+
+[dependencies.clap]
+version = "2.33.0"
+default-features = false
