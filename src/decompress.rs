@@ -33,7 +33,7 @@ pub fn decompress_len(input: &[u8]) -> Result<usize> {
     if input.is_empty() {
         return Ok(0);
     }
-    Ok(try!(Header::read(input)).decompress_len)
+    Ok(Header::read(input)?.decompress_len)
 }
 
 /// Decoder is a raw decoder for decompressing bytes in the Snappy format.
@@ -82,7 +82,7 @@ impl Decoder {
         if input.is_empty() {
             return Err(Error::Empty);
         }
-        let hdr = try!(Header::read(input));
+        let hdr = Header::read(input)?;
         if hdr.decompress_len > output.len() {
             return Err(Error::BufferTooSmall {
                 given: output.len() as u64,
@@ -92,7 +92,7 @@ impl Decoder {
         let dst = &mut output[..hdr.decompress_len];
         let mut dec =
             Decompress { src: &input[hdr.len..], s: 0, dst: dst, d: 0 };
-        try!(dec.decompress());
+        dec.decompress()?;
         Ok(dec.dst.len())
     }
 
@@ -105,8 +105,8 @@ impl Decoder {
     /// This method returns an error under the same circumstances that
     /// `decompress` does.
     pub fn decompress_vec(&mut self, input: &[u8]) -> Result<Vec<u8>> {
-        let mut buf = vec![0; try!(decompress_len(input))];
-        let n = try!(self.decompress(input, &mut buf));
+        let mut buf = vec![0; decompress_len(input)?];
+        let n = self.decompress(input, &mut buf)?;
         buf.truncate(n);
         Ok(buf)
     }
@@ -135,9 +135,9 @@ impl<'s, 'd> Decompress<'s, 'd> {
             self.s += 1;
             if byte & 0b000000_11 == 0 {
                 let len = (byte >> 2) as usize + 1;
-                try!(self.read_literal(len));
+                self.read_literal(len)?;
             } else {
-                try!(self.read_copy(byte));
+                self.read_copy(byte)?;
             }
         }
         if self.d != self.dst.len() {
@@ -236,7 +236,7 @@ impl<'s, 'd> Decompress<'s, 'd> {
         // Find the copy offset and len, then advance the input past the copy.
         // The rest of this function deals with reading/writing to output only.
         let entry = TAG_LOOKUP_TABLE.entry(tag_byte);
-        let offset = try!(entry.offset(self.src, self.s));
+        let offset = entry.offset(self.src, self.s)?;
         let len = entry.len();
         self.s += entry.num_tag_bytes();
 

@@ -84,9 +84,9 @@ impl Args {
             let stdout = io::stdout();
             let mut stdout = stdout.lock();
             if self.flag_decompress {
-                try!(self.decompress(&mut stdin, &mut stdout));
+                self.decompress(&mut stdin, &mut stdout)?;
             } else {
-                try!(self.compress(&mut stdin, &mut stdout));
+                self.compress(&mut stdin, &mut stdout)?;
             }
         } else {
             for f in &self.arg_file {
@@ -118,13 +118,13 @@ impl Args {
         if !self.flag_force && fs::metadata(&new_path).is_ok() {
             fail!("skipping, file already exists: {}", new_path.display());
         }
-        let old_file = io::BufReader::new(try!(File::open(old_path)));
-        let new_file = io::BufWriter::new(try!(File::create(&new_path)));
+        let old_file = io::BufReader::new(File::open(old_path)?);
+        let new_file = io::BufWriter::new(File::create(&new_path)?);
 
-        try!(self.compress(old_file, new_file));
-        try!(copy_atime_mtime(old_path, new_path));
+        self.compress(old_file, new_file)?;
+        copy_atime_mtime(old_path, new_path)?;
         if !self.flag_keep {
-            try!(fs::remove_file(old_path));
+            fs::remove_file(old_path)?;
         }
         Ok(())
     }
@@ -145,13 +145,13 @@ impl Args {
         if !self.flag_force && fs::metadata(&new_path).is_ok() {
             fail!("skipping, file already exists: {}", new_path.display());
         }
-        let old_file = io::BufReader::new(try!(File::open(old_path)));
-        let new_file = io::BufWriter::new(try!(File::create(&new_path)));
+        let old_file = io::BufReader::new(File::open(old_path)?);
+        let new_file = io::BufWriter::new(File::create(&new_path)?);
 
-        try!(self.decompress(old_file, new_file));
-        try!(copy_atime_mtime(old_path, new_path));
+        self.decompress(old_file, new_file)?;
+        copy_atime_mtime(old_path, new_path)?;
         if !self.flag_keep {
-            try!(fs::remove_file(old_path));
+            fs::remove_file(old_path)?;
         }
         Ok(())
     }
@@ -164,12 +164,12 @@ impl Args {
         if self.flag_raw {
             // Read the entire src into memory and compress it.
             let mut buf = Vec::with_capacity(10 * (1 << 20));
-            try!(src.read_to_end(&mut buf));
-            let compressed = try!(snap::Encoder::new().compress_vec(&buf));
-            try!(dst.write_all(&compressed));
+            src.read_to_end(&mut buf)?;
+            let compressed = snap::Encoder::new().compress_vec(&buf)?;
+            dst.write_all(&compressed)?;
         } else {
             let mut dst = snap::write::FrameEncoder::new(dst);
-            try!(io::copy(&mut src, &mut dst));
+            io::copy(&mut src, &mut dst)?;
         }
         Ok(())
     }
@@ -182,12 +182,12 @@ impl Args {
         if self.flag_raw {
             // Read the entire src into memory and decompress it.
             let mut buf = Vec::with_capacity(10 * (1 << 20));
-            try!(src.read_to_end(&mut buf));
-            let decompressed = try!(snap::Decoder::new().decompress_vec(&buf));
-            try!(dst.write_all(&decompressed));
+            src.read_to_end(&mut buf)?;
+            let decompressed = snap::Decoder::new().decompress_vec(&buf)?;
+            dst.write_all(&decompressed)?;
         } else {
             let mut src = snap::read::FrameDecoder::new(src);
-            try!(io::copy(&mut src, &mut dst));
+            io::copy(&mut src, &mut dst)?;
         }
         Ok(())
     }
@@ -198,10 +198,10 @@ where
     P: AsRef<Path>,
     Q: AsRef<Path>,
 {
-    let md = try!(fs::metadata(src));
+    let md = fs::metadata(src)?;
     let last_access = FileTime::from_last_access_time(&md);
     let last_mod = FileTime::from_last_modification_time(&md);
-    try!(set_file_times(dst, last_access, last_mod));
+    set_file_times(dst, last_access, last_mod)?;
     Ok(())
 }
 

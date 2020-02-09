@@ -88,7 +88,7 @@ impl<R: Read> Read for FrameDecoder<R> {
                 self.dsts = dste;
                 return Ok(len);
             }
-            if !try!(read_exact_eof(&mut self.r, &mut self.src[0..4])) {
+            if !read_exact_eof(&mut self.r, &mut self.src[0..4])? {
                 return Ok(0);
             }
             let ty = ChunkType::from_u8(self.src[0]);
@@ -115,7 +115,7 @@ impl<R: Read> Read for FrameDecoder<R> {
                 Err(b) if 0x80 <= b && b <= 0xFD => {
                     // Spec says that chunk types 0x80-0xFD are reserved but
                     // skippable.
-                    try!(self.r.read_exact(&mut self.src[0..len]));
+                    self.r.read_exact(&mut self.src[0..len])?;
                 }
                 Err(b) => {
                     // Can never happen. 0x02-0x7F and 0x80-0xFD are handled
@@ -126,7 +126,7 @@ impl<R: Read> Read for FrameDecoder<R> {
                 }
                 Ok(ChunkType::Padding) => {
                     // Just read and move on.
-                    try!(self.r.read_exact(&mut self.src[0..len]));
+                    self.r.read_exact(&mut self.src[0..len])?;
                 }
                 Ok(ChunkType::Stream) => {
                     if len != STREAM_BODY.len() {
@@ -135,7 +135,7 @@ impl<R: Read> Read for FrameDecoder<R> {
                             header: true,
                         })
                     }
-                    try!(self.r.read_exact(&mut self.src[0..len]));
+                    self.r.read_exact(&mut self.src[0..len])?;
                     if &self.src[0..len] != STREAM_BODY {
                         fail!(Error::StreamHeaderMismatch {
                             bytes: self.src[0..len].to_vec(),
@@ -143,7 +143,7 @@ impl<R: Read> Read for FrameDecoder<R> {
                     }
                 }
                 Ok(ChunkType::Uncompressed) => {
-                    let expected_sum = try!(self.r.read_u32::<LE>());
+                    let expected_sum = self.r.read_u32::<LE>()?;
                     let n = len - 4;
                     if n > self.dst.len() {
                         fail!(Error::UnsupportedChunkLength {
@@ -151,7 +151,7 @@ impl<R: Read> Read for FrameDecoder<R> {
                             header: false,
                         });
                     }
-                    try!(self.r.read_exact(&mut self.dst[0..n]));
+                    self.r.read_exact(&mut self.dst[0..n])?;
                     let got_sum = crc32c_masked(&self.dst[0..n]);
                     if expected_sum != got_sum {
                         fail!(Error::Checksum {
@@ -163,7 +163,7 @@ impl<R: Read> Read for FrameDecoder<R> {
                     self.dste = n;
                 }
                 Ok(ChunkType::Compressed) => {
-                    let expected_sum = try!(self.r.read_u32::<LE>());
+                    let expected_sum = self.r.read_u32::<LE>()?;
                     let sn = len - 4;
                     if sn > self.src.len() {
                         fail!(Error::UnsupportedChunkLength {
@@ -171,17 +171,16 @@ impl<R: Read> Read for FrameDecoder<R> {
                             header: false,
                         });
                     }
-                    try!(self.r.read_exact(&mut self.src[0..sn]));
-                    let dn = try!(decompress_len(&self.src));
+                    self.r.read_exact(&mut self.src[0..sn])?;
+                    let dn = decompress_len(&self.src)?;
                     if dn > self.dst.len() {
                         fail!(Error::UnsupportedChunkLength {
                             len: dn as u64,
                             header: false,
                         });
                     }
-                    try!(self
-                        .dec
-                        .decompress(&self.src[0..sn], &mut self.dst[0..dn]));
+                    self.dec
+                        .decompress(&self.src[0..sn], &mut self.dst[0..dn])?;
                     let got_sum = crc32c_masked(&self.dst[0..dn]);
                     if expected_sum != got_sum {
                         fail!(Error::Checksum {
@@ -299,7 +298,7 @@ impl<R: Read> Read for FrameEncoder<R> {
         } else {
             // We need to refill `self.dst`, and then return some bytes from
             // that.
-            let count = try!(self.inner.read_frame(&mut self.dst));
+            let count = self.inner.read_frame(&mut self.dst)?;
             self.dsts = 0;
             self.dste = count;
             Ok(self.read_from_dst(buf))
@@ -320,7 +319,7 @@ impl<R: Read> Inner<R> {
         // more surprising. In general, io::Read implementations should try to
         // fill the caller's buffer as much as they can, so this seems like the
         // better choice.
-        let nread = try!(self.r.read(&mut self.src));
+        let nread = self.r.read(&mut self.src)?;
         if nread == 0 {
             return Ok(0);
         }
@@ -342,13 +341,13 @@ impl<R: Read> Inner<R> {
 
         // Compress our frame if possible, telling `compress_frame` to always
         // put the output in `dst`.
-        let frame_data = try!(compress_frame(
+        let frame_data = compress_frame(
             &mut self.enc,
             &self.src[..nread],
             chunk_header,
             remaining_dst,
             true,
-        ));
+        )?;
         Ok(dst_write_start + frame_data.len())
     }
 }
