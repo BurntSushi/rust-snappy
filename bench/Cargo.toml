@@ -1,0 +1,26 @@
+[package]
+publish = false
+name = "snap-bench"
+version = "0.0.1"
+authors = ["Andrew Gallant <jamslam@gmail.com>"]
+description = "Criterion benchmark suite for snap."
+homepage = "https://github.com/BurntSushi/rust-snappy"
+repository = "https://github.com/BurntSushi/rust-snappy"
+license = "BSD-3-Clause"
+edition = "2018"
+
+[lib]
+bench = false
+
+[[bench]]
+name = "snap"
+harness = false
+path = "src/bench.rs"
+
+[features]
+cpp = ["snappy-cpp"]
+
+[dependencies]
+criterion = "0.3.1"
+snap = { version = "*", path = ".." }
+snappy-cpp = { path = "../snappy-cpp", version = "0.1", optional = true }
