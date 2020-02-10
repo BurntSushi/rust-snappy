@@ -98,11 +98,11 @@ jobs:
       run: ${{ env.CARGO }} build --verbose --manifest-path szip/Cargo.toml $TARGET
 
     - name: Compile benchmarks
-      if: matrix.build == 'nightly'
-      run: ${{ env.CARGO }} bench --verbose --no-run $TARGET
+      run: ${{ env.CARGO }} bench --manifest-path bench/Cargo.toml --verbose $TARGET -- --test
 
     # Only worry about snappy-cpp when not using cross, since it's a pain
-    # otherwise to deal with cross compiling with a C++ library.
+    # otherwise to deal with cross compiling with a C++ library. Similarly,
+    # skip CPP testing on Windows.
     - name: Install snappy C++ library (Ubuntu)
       if: env.CARGO == 'cargo' && matrix.os == 'ubuntu-18.04'
       run: sudo apt-get install libsnappy-dev
@@ -120,8 +120,8 @@ jobs:
       run: cargo test --verbose --features cpp
 
     - name: Compile benchmarks with snappy-cpp
-      if: matrix.build == 'nightly' && env.CARGO == 'cargo'
-      run: cargo bench --verbose --features cpp --no-run
+      if: env.CARGO == 'cargo' && matrix.os != 'windows-2019'
+      run: cargo bench --manifest-path bench/Cargo.toml --verbose --features cpp -- --test
 
   rustfmt:
     name: rustfmt

@@ -16,7 +16,7 @@ edition = "2018"
 
 [workspace]
 exclude = ["snappy-cpp"]
-members = ["szip"]
+members = ["bench", "szip"]
 
 [lib]
 bench = false
