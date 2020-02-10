@@ -95,6 +95,7 @@ const MAX_BLOCK_SIZE: usize = 1 << 16;
 
 mod compress;
 mod crc32;
+mod crc32_table;
 mod decompress;
 mod error;
 mod frame;

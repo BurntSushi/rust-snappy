@@ -1,23 +1,24 @@
 use byteorder::{ByteOrder, LittleEndian as LE};
-use lazy_static::lazy_static;
 
 use crate::compress::{max_compress_len, Encoder};
 use crate::crc32::crc32c;
 use crate::error::Error;
 use crate::MAX_BLOCK_SIZE;
 
-lazy_static! {
-    pub static ref MAX_COMPRESS_BLOCK_SIZE: usize =
-        max_compress_len(MAX_BLOCK_SIZE);
-}
+/// The maximum chunk of compressed bytes that can be processed at one time.
+///
+/// This is computed via `max_compress_len(MAX_BLOCK_SIZE)`.
+///
+/// TODO(ag): Replace with const fn once they support nominal branching.
+pub const MAX_COMPRESS_BLOCK_SIZE: usize = 76490;
 
-// The special magic string that starts any stream.
-//
-// This may appear more than once in a stream in order to support easy
-// concatenation of files compressed in the Snappy frame format.
+/// The special magic string that starts any stream.
+///
+/// This may appear more than once in a stream in order to support easy
+/// concatenation of files compressed in the Snappy frame format.
 pub const STREAM_IDENTIFIER: &'static [u8] = b"\xFF\x06\x00\x00sNaPpY";
 
-// The body of the special stream identifier.
+/// The body of the special stream identifier.
 pub const STREAM_BODY: &'static [u8] = b"sNaPpY";
 
 /// The length of a snappy chunk type (1 byte), packet length (3 bytes)
@@ -25,7 +26,7 @@ pub const STREAM_BODY: &'static [u8] = b"sNaPpY";
 /// the CRC present in most chunks.
 pub const CHUNK_HEADER_AND_CRC_SIZE: usize = 8;
 
-// An enumeration describing each of the 4 main chunk types.
+/// An enumeration describing each of the 4 main chunk types.
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
 pub enum ChunkType {
     Stream = 0xFF,
