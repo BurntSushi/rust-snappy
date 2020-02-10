@@ -22,7 +22,6 @@ members = ["bench", "szip"]
 bench = false
 
 [dependencies]
-byteorder = "1"
 snappy-cpp = { path = "snappy-cpp", version = "0.1", optional = true }
 
 [dev-dependencies]

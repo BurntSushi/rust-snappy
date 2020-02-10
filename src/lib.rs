@@ -93,6 +93,7 @@ const MAX_INPUT_SIZE: u64 = std::u32::MAX as u64;
 /// at which we scan for candidates for compression.
 const MAX_BLOCK_SIZE: usize = 1 << 16;
 
+mod bytes;
 mod compress;
 mod crc32;
 mod crc32_table;
@@ -104,5 +105,4 @@ pub mod read;
 mod tag;
 #[cfg(test)]
 mod tests;
-mod varint;
 pub mod write;

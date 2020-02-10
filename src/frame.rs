@@ -1,5 +1,4 @@
-use byteorder::{ByteOrder, LittleEndian as LE};
-
+use crate::bytes;
 use crate::compress::{max_compress_len, Encoder};
 use crate::crc32::crc32c;
 use crate::error::Error;
@@ -96,8 +95,8 @@ pub fn compress_frame<'a>(
         };
 
     dst_chunk_header[0] = chunk_type as u8;
-    LE::write_uint(&mut dst_chunk_header[1..], chunk_len as u64, 3);
-    LE::write_u32(&mut dst_chunk_header[4..], checksum);
+    bytes::write_u24_le(chunk_len as u32, &mut dst_chunk_header[1..]);
+    bytes::write_u32_le(checksum, &mut dst_chunk_header[4..]);
 
     // Return the data to put in our frame.
     if chunk_type == ChunkType::Compressed {

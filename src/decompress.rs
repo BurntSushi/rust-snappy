@@ -1,10 +1,8 @@
 use std::ptr;
 
-use byteorder::{ByteOrder, LittleEndian as LE};
-
+use crate::bytes;
 use crate::error::{Error, Result};
 use crate::tag;
-use crate::varint::read_varu64;
 use crate::MAX_INPUT_SIZE;
 
 /// A lookup table for quickly computing the various attributes derived from a
@@ -201,7 +199,7 @@ impl<'s, 'd> Decompress<'s, 'd> {
             // Since we know there are 4 bytes left to read, read a 32 bit LE
             // integer and mask away the bits we don't need.
             let byte_count = len as usize - 60;
-            len = LE::read_u32(&self.src[self.s..]) as u64;
+            len = bytes::read_u32_le(&self.src[self.s..]) as u64;
             len = (len & (WORD_MASK[byte_count] as u64)) + 1;
             self.s += byte_count;
         }
@@ -356,7 +354,7 @@ impl Header {
     /// If a header is returned then it is guaranteed to be valid.
     #[inline(always)]
     fn read(input: &[u8]) -> Result<Header> {
-        let (decompress_len, header_len) = read_varu64(input);
+        let (decompress_len, header_len) = bytes::read_varu64(input);
         if header_len == 0 {
             return Err(Error::Header);
         }
@@ -442,7 +440,7 @@ impl TagEntry {
                     // not all of those bytes are necessarily part of the
                     // offset. This is the key optimization: we don't need to
                     // branch on num_tag_bytes.
-                    loadu32_le(p) as usize & WORD_MASK[num_tag_bytes]
+                    bytes::loadu_u32_le(p) as usize & WORD_MASK[num_tag_bytes]
                 }
             } else if num_tag_bytes == 1 {
                 if s >= src.len() {
@@ -459,7 +457,7 @@ impl TagEntry {
                         src_len: (src.len() - s) as u64,
                     });
                 }
-                LE::read_u16(&src[s..]) as usize
+                bytes::read_u16_le(&src[s..]) as usize
             } else {
                 return Err(Error::CopyRead {
                     len: num_tag_bytes as u64,
@@ -468,14 +466,4 @@ impl TagEntry {
             };
         Ok((self.0 & 0b0000_0111_0000_0000) | trailer)
     }
-}
-
-/// Loads a little endian encoded u32 from data.
-///
-/// This is unsafe because `data` must point to some memory of size at least 4.
-#[inline(always)]
-unsafe fn loadu32_le(data: *const u8) -> u32 {
-    let mut n: u32 = 0;
-    ptr::copy_nonoverlapping(data, &mut n as *mut u32 as *mut u8, 4);
-    n.to_le()
 }
