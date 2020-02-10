@@ -18,7 +18,6 @@ use std::fmt;
 use std::io;
 
 use byteorder::{ByteOrder, LittleEndian as LE, ReadBytesExt};
-use lazy_static::lazy_static;
 
 use crate::compress::Encoder;
 use crate::decompress::{decompress_len, Decoder};
@@ -29,14 +28,11 @@ use crate::frame::{
 };
 use crate::MAX_BLOCK_SIZE;
 
-lazy_static! {
-    /// The maximum block that `FrameEncoder` can output in a single read
-    /// operation.
-    static ref MAX_READ_FRAME_ENCODER_BLOCK_SIZE: usize = STREAM_IDENTIFIER
-        .len()
-        + CHUNK_HEADER_AND_CRC_SIZE
-        + *MAX_COMPRESS_BLOCK_SIZE;
-}
+/// The maximum size of a compressed block, including the header and stream
+/// identifier, that can be emitted by FrameEncoder.
+const MAX_READ_FRAME_ENCODER_BLOCK_SIZE: usize = STREAM_IDENTIFIER.len()
+    + CHUNK_HEADER_AND_CRC_SIZE
+    + MAX_COMPRESS_BLOCK_SIZE;
 
 /// A reader for decompressing a Snappy stream.
 ///
@@ -73,7 +69,7 @@ impl<R: io::Read> FrameDecoder<R> {
         FrameDecoder {
             r: rdr,
             dec: Decoder::new(),
-            src: vec![0; *MAX_COMPRESS_BLOCK_SIZE],
+            src: vec![0; MAX_COMPRESS_BLOCK_SIZE],
             dst: vec![0; MAX_BLOCK_SIZE],
             dsts: 0,
             dste: 0,
@@ -274,7 +270,7 @@ impl<R: io::Read> FrameEncoder<R> {
                 src: vec![0; MAX_BLOCK_SIZE],
                 wrote_stream_ident: false,
             },
-            dst: vec![0; *MAX_READ_FRAME_ENCODER_BLOCK_SIZE],
+            dst: vec![0; MAX_READ_FRAME_ENCODER_BLOCK_SIZE],
             dsts: 0,
             dste: 0,
         }
@@ -305,7 +301,7 @@ impl<R: io::Read> io::Read for FrameEncoder<R> {
         if count > 0 {
             // We had some bytes in our `dst` buffer that we used.
             Ok(count)
-        } else if buf.len() >= *MAX_READ_FRAME_ENCODER_BLOCK_SIZE {
+        } else if buf.len() >= MAX_READ_FRAME_ENCODER_BLOCK_SIZE {
             // Our output `buf` is big enough that we can directly write into
             // it, so bypass `dst` entirely.
             self.inner.read_frame(buf)
@@ -322,9 +318,9 @@ impl<R: io::Read> io::Read for FrameEncoder<R> {
 
 impl<R: io::Read> Inner<R> {
     /// Read from `self.r`, and create a new frame, writing it to `dst`, which
-    /// must be at least `*MAX_READ_FRAME_ENCODER_BLOCK_SIZE` bytes in size.
+    /// must be at least `MAX_READ_FRAME_ENCODER_BLOCK_SIZE` bytes in size.
     fn read_frame(&mut self, dst: &mut [u8]) -> io::Result<usize> {
-        debug_assert!(dst.len() >= *MAX_READ_FRAME_ENCODER_BLOCK_SIZE);
+        debug_assert!(dst.len() >= MAX_READ_FRAME_ENCODER_BLOCK_SIZE);
 
         // We make one read to the underlying reader. If the underlying reader
         // doesn't fill the buffer but there are still bytes to be read, then

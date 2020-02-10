@@ -70,7 +70,7 @@ impl<W: io::Write> FrameEncoder<W> {
             inner: Some(Inner {
                 w: wtr,
                 enc: Encoder::new(),
-                dst: vec![0; *MAX_COMPRESS_BLOCK_SIZE],
+                dst: vec![0; MAX_COMPRESS_BLOCK_SIZE],
                 wrote_stream_ident: false,
                 chunk_header: [0; CHUNK_HEADER_AND_CRC_SIZE],
             }),
