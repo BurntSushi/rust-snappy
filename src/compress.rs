@@ -2,10 +2,8 @@ use std::fmt;
 use std::ops::{Deref, DerefMut};
 use std::ptr;
 
-use byteorder::{ByteOrder, LittleEndian as LE};
-
+use crate::bytes;
 use crate::error::{Error, Result};
-use crate::varint::write_varu64;
 use crate::{MAX_BLOCK_SIZE, MAX_INPUT_SIZE};
 
 /// The total number of slots we permit for our hash table of 4 byte repeat
@@ -127,7 +125,7 @@ impl Encoder {
         }
         // Write the Snappy header, which is just the total number of
         // uncompressed bytes.
-        let mut d = write_varu64(output, input.len() as u64);
+        let mut d = bytes::write_varu64(output, input.len() as u64);
         while !input.is_empty() {
             // Find the next block.
             let mut src = input;
@@ -200,7 +198,8 @@ impl<'s, 'd> Block<'s, 'd> {
 
         self.s += 1;
         self.s_limit -= INPUT_MARGIN;
-        let mut next_hash = table.hash(LE::read_u32(&self.src[self.s..]));
+        let mut next_hash =
+            table.hash(bytes::read_u32_le(&self.src[self.s..]));
         loop {
             let mut skip = 32;
             let mut candidate;
@@ -365,7 +364,7 @@ impl<'s, 'd> Block<'s, 'd> {
         debug_assert!(1 <= offset && offset <= 65535);
         debug_assert!(1 <= len && len <= 64);
         self.dst[self.d] = (((len - 1) as u8) << 2) | (Tag::Copy2 as u8);
-        LE::write_u16(&mut self.dst[self.d + 1..], offset as u16);
+        bytes::write_u16_le(offset as u16, &mut self.dst[self.d + 1..]);
         self.d += 3;
     }
 
@@ -459,7 +458,7 @@ impl<'s, 'd> Block<'s, 'd> {
             self.d += 2;
         } else {
             self.dst[self.d] = (61 << 2) | (Tag::Literal as u8);
-            LE::write_u16(&mut self.dst[self.d + 1..], n as u16);
+            bytes::write_u16_le(n as u16, &mut self.dst[self.d + 1..]);
             self.d += 3;
         }
         // SAFETY: lit_start is equivalent to self.next_emit, which

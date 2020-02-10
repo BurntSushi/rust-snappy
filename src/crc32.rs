@@ -22,8 +22,7 @@
 // somewhat useful to leave around for easy benchmarking.
 #![allow(dead_code)]
 
-use byteorder::{ByteOrder, LittleEndian as LE};
-
+use crate::bytes;
 use crate::crc32_table::{CASTAGNOLI_POLY, TABLE, TABLE16};
 
 /// Returns the CRC32 checksum of `buf` using the Castagnoli polynomial.
@@ -36,7 +35,7 @@ pub fn crc32c(buf: &[u8]) -> u32 {
 fn crc32c_slice16(mut buf: &[u8]) -> u32 {
     let mut crc: u32 = !0;
     while buf.len() >= 16 {
-        crc ^= LE::read_u32(&buf[0..4]);
+        crc ^= bytes::read_u32_le(buf);
         crc = TABLE16[0][buf[15] as usize]
             ^ TABLE16[1][buf[14] as usize]
             ^ TABLE16[2][buf[13] as usize]
@@ -65,7 +64,7 @@ fn crc32c_slice16(mut buf: &[u8]) -> u32 {
 fn crc32c_slice8(mut buf: &[u8]) -> u32 {
     let mut crc: u32 = !0;
     while buf.len() >= 8 {
-        crc ^= LE::read_u32(&buf[0..4]);
+        crc ^= bytes::read_u32_le(buf);
         crc = TABLE16[0][buf[7] as usize]
             ^ TABLE16[1][buf[6] as usize]
             ^ TABLE16[2][buf[5] as usize]
@@ -86,7 +85,7 @@ fn crc32c_slice8(mut buf: &[u8]) -> u32 {
 fn crc32c_slice4(mut buf: &[u8]) -> u32 {
     let mut crc: u32 = !0;
     while buf.len() >= 4 {
-        crc ^= LE::read_u32(&buf[0..4]);
+        crc ^= bytes::read_u32_le(buf);
         crc = TABLE16[0][(crc >> 24) as u8 as usize]
             ^ TABLE16[1][(crc >> 16) as u8 as usize]
             ^ TABLE16[2][(crc >> 8) as u8 as usize]

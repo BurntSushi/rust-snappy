@@ -17,8 +17,7 @@ use std::cmp;
 use std::fmt;
 use std::io;
 
-use byteorder::{ByteOrder, LittleEndian as LE, ReadBytesExt};
-
+use crate::bytes;
 use crate::compress::Encoder;
 use crate::decompress::{decompress_len, Decoder};
 use crate::error::Error;
@@ -108,7 +107,7 @@ impl<R: io::Read> io::Read for FrameDecoder<R> {
                 }
                 self.read_stream_ident = true;
             }
-            let len64 = LE::read_uint(&self.src[1..4], 3);
+            let len64 = bytes::read_u24_le(&self.src[1..]) as u64;
             if len64 > self.src.len() as u64 {
                 fail!(Error::UnsupportedChunkLength {
                     len: len64,
@@ -153,7 +152,7 @@ impl<R: io::Read> io::Read for FrameDecoder<R> {
                     }
                 }
                 Ok(ChunkType::Uncompressed) => {
-                    let expected_sum = self.r.read_u32::<LE>()?;
+                    let expected_sum = bytes::io_read_u32_le(&mut self.r)?;
                     let n = len - 4;
                     if n > self.dst.len() {
                         fail!(Error::UnsupportedChunkLength {
@@ -173,7 +172,7 @@ impl<R: io::Read> io::Read for FrameDecoder<R> {
                     self.dste = n;
                 }
                 Ok(ChunkType::Compressed) => {
-                    let expected_sum = self.r.read_u32::<LE>()?;
+                    let expected_sum = bytes::io_read_u32_le(&mut self.r)?;
                     let sn = len - 4;
                     if sn > self.src.len() {
                         fail!(Error::UnsupportedChunkLength {
