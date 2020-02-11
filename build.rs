@@ -1,9 +1,11 @@
 use std::env;
 use std::fs::File;
 use std::io::{self, Write};
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 const CASTAGNOLI_POLY: u32 = 0x82f63b78;
+
+type Result<T> = std::result::Result<T, Box<dyn std::error::Error>>;
 
 fn main() {
     if let Err(err) = try_main() {
@@ -11,13 +13,60 @@ fn main() {
     }
 }
 
-fn try_main() -> Result<(), Box<dyn std::error::Error>> {
+fn try_main() -> Result<()> {
     let out_dir = match env::var_os("OUT_DIR") {
         None => {
             return Err(From::from("OUT_DIR environment variable not defined"))
         }
         Some(out_dir) => PathBuf::from(out_dir),
     };
+    write_tag_lookup_table(&out_dir)?;
+    write_crc_tables(&out_dir)?;
+    Ok(())
+}
+
+fn write_tag_lookup_table(out_dir: &Path) -> Result<()> {
+    let out_path = out_dir.join("tag.rs");
+    let mut out = io::BufWriter::new(File::create(out_path)?);
+
+    writeln!(out, "pub const TAG_LOOKUP_TABLE: [u16; 256] = [")?;
+    for b in 0u8..=255 {
+        writeln!(out, "    {},", tag_entry(b))?;
+    }
+    writeln!(out, "];")?;
+    Ok(())
+}
+
+fn tag_entry(b: u8) -> u16 {
+    let b = b as u16;
+    match b & 0b00000011 {
+        0b00 => {
+            let lit_len = (b >> 2) + 1;
+            if lit_len <= 60 {
+                lit_len
+            } else {
+                assert!(lit_len <= 64);
+                (lit_len - 60) << 11
+            }
+        }
+        0b01 => {
+            let len = 4 + ((b >> 2) & 0b111);
+            let offset = (b >> 5) & 0b111;
+            (1 << 11) | (offset << 8) | len
+        }
+        0b10 => {
+            let len = 1 + (b >> 2);
+            (2 << 11) | len
+        }
+        0b11 => {
+            let len = 1 + (b >> 2);
+            (4 << 11) | len
+        }
+        _ => unreachable!(),
+    }
+}
+
+fn write_crc_tables(out_dir: &Path) -> Result<()> {
     let out_path = out_dir.join("crc32_table.rs");
     let mut out = io::BufWriter::new(File::create(out_path)?);
 
