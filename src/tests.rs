@@ -475,7 +475,7 @@ fn qc_roundtrip() {
         depress(&press(&bytes)) == bytes
     }
     QuickCheck::new()
-        .gen(StdGen::new(::rand::thread_rng(), 10_000))
+        .gen(StdGen::new(rand::thread_rng(), 10_000))
         .tests(1_000)
         .quickcheck(p as fn(_) -> _);
 }
@@ -491,7 +491,7 @@ fn qc_roundtrip_stream() {
         )
     }
     QuickCheck::new()
-        .gen(StdGen::new(::rand::thread_rng(), 10_000))
+        .gen(StdGen::new(rand::thread_rng(), 10_000))
         .tests(1_000)
         .quickcheck(p as fn(_) -> _);
 }
@@ -503,7 +503,7 @@ fn qc_cmpcpp() {
         press(&bytes) == press_cpp(&bytes)
     }
     QuickCheck::new()
-        .gen(StdGen::new(::rand::thread_rng(), 10_000))
+        .gen(StdGen::new(rand::thread_rng(), 10_000))
         .tests(1_000)
         .quickcheck(p as fn(_) -> _);
 }

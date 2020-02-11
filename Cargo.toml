@@ -25,8 +25,8 @@ bench = false
 snappy-cpp = { path = "snappy-cpp", version = "0.1", optional = true }
 
 [dev-dependencies]
-quickcheck = { version = "0.7", default-features = false }
-rand = "0.5"
+quickcheck = { version = "0.9", default-features = false }
+rand = "0.7.3"
 
 [features]
 cpp = ["snappy-cpp"]
