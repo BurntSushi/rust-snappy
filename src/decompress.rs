@@ -175,8 +175,8 @@ impl<'s, 'd> Decompress<'s, 'd> {
                 // SAFETY: We know both src and dst have at least 16 bytes of
                 // wiggle room after s/d, even if `len` is <16, so the copy is
                 // safe.
-                let srcp = self.src.as_ptr().offset(self.s as isize);
-                let dstp = self.dst.as_mut_ptr().offset(self.d as isize);
+                let srcp = self.src.as_ptr().add(self.s);
+                let dstp = self.dst.as_mut_ptr().add(self.d);
                 // Hopefully uses SIMD registers for 128 bit load/store.
                 ptr::copy_nonoverlapping(srcp, dstp, 16);
             }
@@ -218,8 +218,8 @@ impl<'s, 'd> Decompress<'s, 'd> {
         unsafe {
             // SAFETY: We've already checked the bounds, so we know this copy
             // is correct.
-            let srcp = self.src.as_ptr().offset(self.s as isize);
-            let dstp = self.dst.as_mut_ptr().offset(self.d as isize);
+            let srcp = self.src.as_ptr().add(self.s);
+            let dstp = self.dst.as_mut_ptr().add(self.d);
             ptr::copy_nonoverlapping(srcp, dstp, len as usize);
         }
         self.s += len as usize;
@@ -262,13 +262,13 @@ impl<'s, 'd> Decompress<'s, 'd> {
                 //
                 // We also know that dstp and dstp-8 do not overlap from the
                 // check above, justifying the use of copy_nonoverlapping.
-                let dstp = self.dst.as_mut_ptr().offset(self.d as isize);
-                let srcp = dstp.offset(-(offset as isize));
+                let dstp = self.dst.as_mut_ptr().add(self.d);
+                let srcp = dstp.sub(offset);
                 // We can't do a single 16 byte load/store because src/dst may
                 // overlap with each other. Namely, the second copy here may
                 // copy bytes written in the first copy!
                 ptr::copy_nonoverlapping(srcp, dstp, 8);
-                ptr::copy_nonoverlapping(srcp.offset(8), dstp.offset(8), 8);
+                ptr::copy_nonoverlapping(srcp.add(8), dstp.add(8), 8);
             }
         // If we have some wiggle room, try to decompress the copy 16 bytes
         // at a time with 128 bit unaligned loads/stores. Remember, we can't
@@ -296,10 +296,11 @@ impl<'s, 'd> Decompress<'s, 'd> {
                 // to [0, 0]. But the last copy wrote to [9, 24], which is 24
                 // extra bytes in dst *beyond* the end of the copy, which is
                 // guaranteed by the conditional above.
-                let mut dstp = self.dst.as_mut_ptr().offset(self.d as isize);
-                let mut srcp = dstp.offset(-(offset as isize));
+                let mut dstp = self.dst.as_mut_ptr().add(self.d);
+                let mut srcp = dstp.sub(offset);
                 loop {
-                    let diff = (dstp as isize) - (srcp as isize);
+                    debug_assert!(dstp >= srcp);
+                    let diff = (dstp as usize) - (srcp as usize);
                     if diff >= 16 {
                         break;
                     }
@@ -307,12 +308,12 @@ impl<'s, 'd> Decompress<'s, 'd> {
                     debug_assert!(self.d + 16 <= self.dst.len());
                     ptr::copy(srcp, dstp, 16);
                     self.d += diff as usize;
-                    dstp = dstp.offset(diff);
+                    dstp = dstp.add(diff);
                 }
                 while self.d < end {
                     ptr::copy_nonoverlapping(srcp, dstp, 16);
-                    srcp = srcp.offset(16);
-                    dstp = dstp.offset(16);
+                    srcp = srcp.add(16);
+                    dstp = dstp.add(16);
                     self.d += 16;
                 }
                 // At this point, `d` is likely wrong. We correct it before
@@ -434,7 +435,7 @@ impl TagEntry {
                 unsafe {
                     // SAFETY: The conditional above guarantees that
                     // src[s..s+4] is valid to read from.
-                    let p = src.as_ptr().offset(s as isize);
+                    let p = src.as_ptr().add(s);
                     // We use WORD_MASK here to mask out the bits we don't
                     // need. While we're guaranteed to read 4 valid bytes,
                     // not all of those bytes are necessarily part of the

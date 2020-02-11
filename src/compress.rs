@@ -222,7 +222,7 @@ impl<'s, 'd> Block<'s, 'd> {
                     // SAFETY: s_next is guaranteed to be less than s_limit by
                     // the conditional above, which implies s_next is in
                     // bounds.
-                    let x = loadu32_le(srcp.offset(s_next as isize));
+                    let x = bytes::loadu_u32_le(srcp.add(s_next));
                     next_hash = table.hash(x);
                     // SAFETY: self.s is always less than s_next, so it is also
                     // in bounds by the argument above.
@@ -236,8 +236,8 @@ impl<'s, 'd> Block<'s, 'd> {
                     // bytes at the current position and cand corresponds to
                     // a potential match. If they're equal, we declare victory
                     // and move below to try and extend the match.
-                    let cur = loadu32(srcp.offset(self.s as isize));
-                    let cand = loadu32(srcp.offset(candidate as isize));
+                    let cur = bytes::loadu_u32_ne(srcp.add(self.s));
+                    let cand = bytes::loadu_u32_ne(srcp.add(candidate));
                     if cur == cand {
                         break;
                     }
@@ -287,7 +287,7 @@ impl<'s, 'd> Block<'s, 'd> {
                     // SAFETY: self.s can never exceed s_limit given by the
                     // conditional above and self.s is guaranteed to be
                     // non-zero and is therefore in bounds.
-                    let x = loadu64_le(srcp.offset((self.s - 1) as isize));
+                    let x = bytes::loadu_u64_le(srcp.add(self.s - 1));
                     // The lower 4 bytes of x correspond to
                     // self.src[self.s - 1..self.s + 3].
                     let prev_hash = table.hash(x as u32);
@@ -302,7 +302,7 @@ impl<'s, 'd> Block<'s, 'd> {
 
                     // SAFETY: candidate is set from table, which always
                     // contains valid positions in the current block.
-                    let y = loadu32_le(srcp.offset(candidate as isize));
+                    let y = bytes::loadu_u32_le(srcp.add(candidate));
                     if (x >> 8) as u32 != y {
                         // If we didn't get a hit, update the next hash
                         // and move on. Our initial 8 byte read continues to
@@ -387,8 +387,8 @@ impl<'s, 'd> Block<'s, 'd> {
             // TODO(ag): Despite my best efforts, I couldn't get this to
             // autovectorize with 128-bit loads. The logic after the loads
             // appears to be a little too clever...
-            let x = loadu64(srcp.offset(self.s as isize));
-            let y = loadu64(srcp.offset(cand as isize));
+            let x = bytes::loadu_u64_ne(srcp.add(self.s));
+            let y = bytes::loadu_u64_ne(srcp.add(cand));
             if x == y {
                 // If all 8 bytes are equal, move on...
                 self.s += 8;
@@ -438,16 +438,16 @@ impl<'s, 'd> Block<'s, 'd> {
             self.dst[self.d] = ((n as u8) << 2) | (Tag::Literal as u8);
             self.d += 1;
             if len <= 16 && lit_start + 16 <= self.src.len() {
-                // SAFETY: lit_start is equivalent to self.next_emit, which
-                // is only set to self.s immediately proceeding a copy
-                // emit. The conditional above also ensures that there is at
-                // least 16 bytes of room in both src and dst.
+                // SAFETY: lit_start is equivalent to self.next_emit, which is
+                // only set to self.s immediately following a copy emit. The
+                // conditional above also ensures that there is at least 16
+                // bytes of room in both src and dst.
                 //
                 // dst is big enough because the buffer is guaranteed to
                 // be big enough to hold biggest possible compressed size plus
                 // an extra 32 bytes, which exceeds the 16 byte copy here.
-                let srcp = self.src.as_ptr().offset(lit_start as isize);
-                let dstp = self.dst.as_mut_ptr().offset(self.d as isize);
+                let srcp = self.src.as_ptr().add(lit_start);
+                let dstp = self.dst.as_mut_ptr().add(self.d);
                 ptr::copy_nonoverlapping(srcp, dstp, 16);
                 self.d += len;
                 return;
@@ -461,15 +461,14 @@ impl<'s, 'd> Block<'s, 'd> {
             bytes::write_u16_le(n as u16, &mut self.dst[self.d + 1..]);
             self.d += 3;
         }
-        // SAFETY: lit_start is equivalent to self.next_emit, which
-        // is only set to self.s immediately proceeding a copy, which
-        // implies that it always points to valid bytes in self.src.
+        // SAFETY: lit_start is equivalent to self.next_emit, which is only set
+        // to self.s immediately following a copy, which implies that it always
+        // points to valid bytes in self.src.
         //
-        // We can't guarantee that there are at least len bytes though,
-        // which must be guaranteed by the caller and is why this method
-        // is unsafe.
-        let srcp = self.src.as_ptr().offset(lit_start as isize);
-        let dstp = self.dst.as_mut_ptr().offset(self.d as isize);
+        // We can't guarantee that there are at least len bytes though, which
+        // must be guaranteed by the caller and is why this method is unsafe.
+        let srcp = self.src.as_ptr().add(lit_start);
+        let dstp = self.dst.as_mut_ptr().add(self.d);
         ptr::copy_nonoverlapping(srcp, dstp, len);
         self.d += len;
     }
@@ -537,24 +536,4 @@ impl<'a> DerefMut for BlockTable<'a> {
     fn deref_mut(&mut self) -> &mut [u16] {
         self.table
     }
-}
-
-unsafe fn loadu64(data: *const u8) -> u64 {
-    let mut n: u64 = 0;
-    ptr::copy_nonoverlapping(data, &mut n as *mut u64 as *mut u8, 8);
-    n
-}
-
-unsafe fn loadu64_le(data: *const u8) -> u64 {
-    loadu64(data).to_le()
-}
-
-unsafe fn loadu32(data: *const u8) -> u32 {
-    let mut n: u32 = 0;
-    ptr::copy_nonoverlapping(data, &mut n as *mut u32 as *mut u8, 4);
-    n
-}
-
-unsafe fn loadu32_le(data: *const u8) -> u32 {
-    loadu32(data).to_le()
 }

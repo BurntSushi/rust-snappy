@@ -93,5 +93,26 @@ pub fn read_varu64(data: &[u8]) -> (u64, usize) {
 ///
 /// This is unsafe because `data` must point to some memory of size at least 4.
 pub unsafe fn loadu_u32_le(data: *const u8) -> u32 {
-    (data as *const u32).read_unaligned().to_le()
+    loadu_u32_ne(data).to_le()
+}
+
+/// Does an unaligned load of a native endian encoded u32.
+///
+/// This is unsafe because `data` must point to some memory of size at least 4.
+pub unsafe fn loadu_u32_ne(data: *const u8) -> u32 {
+    (data as *const u32).read_unaligned()
+}
+
+/// Does an unaligned load of a little endian encoded u64.
+///
+/// This is unsafe because `data` must point to some memory of size at least 8.
+pub unsafe fn loadu_u64_le(data: *const u8) -> u64 {
+    loadu_u64_ne(data).to_le()
+}
+
+/// Does an unaligned load of a native endian encoded u64.
+///
+/// This is unsafe because `data` must point to some memory of size at least 8.
+pub unsafe fn loadu_u64_ne(data: *const u8) -> u64 {
+    (data as *const u64).read_unaligned()
 }
