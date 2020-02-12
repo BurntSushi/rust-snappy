@@ -1,0 +1,23 @@
+[package]
+publish = false
+name = "snap-test"
+version = "0.0.1"
+authors = ["Andrew Gallant <jamslam@gmail.com>"]
+description = "Tests for snap crate."
+homepage = "https://github.com/BurntSushi/rust-snappy"
+repository = "https://github.com/BurntSushi/rust-snappy"
+license = "BSD-3-Clause"
+edition = "2018"
+
+[lib]
+bench = false
+path = "lib.rs"
+
+[features]
+cpp = ["snappy-cpp"]
+
+[dependencies]
+quickcheck = { version = "0.9", default-features = false }
+rand = "0.7.3"
+snap = { version = "*", path = ".." }
+snappy-cpp = { path = "../snappy-cpp", version = "*", optional = true }

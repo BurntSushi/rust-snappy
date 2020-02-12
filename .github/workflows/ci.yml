@@ -117,7 +117,7 @@ jobs:
 
     - name: Run tests with snappy-cpp
       if: env.CARGO == 'cargo' && matrix.os != 'windows-2019'
-      run: cargo test --verbose --features cpp
+      run: cargo test --verbose --manifest-path test/Cargo.toml --features cpp
 
     - name: Compile benchmarks with snappy-cpp
       if: env.CARGO == 'cargo' && matrix.os != 'windows-2019'
