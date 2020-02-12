@@ -103,6 +103,4 @@ mod frame;
 pub mod raw;
 pub mod read;
 mod tag;
-#[cfg(test)]
-mod tests;
 pub mod write;

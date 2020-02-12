@@ -16,20 +16,10 @@ edition = "2018"
 
 [workspace]
 exclude = ["snappy-cpp"]
-members = ["bench", "szip"]
+members = ["bench", "test", "szip"]
 
 [lib]
 bench = false
-
-[dependencies]
-snappy-cpp = { path = "snappy-cpp", version = "0.1", optional = true }
-
-[dev-dependencies]
-quickcheck = { version = "0.9", default-features = false }
-rand = "0.7.3"
-
-[features]
-cpp = ["snappy-cpp"]
 
 [profile.release]
 debug = true

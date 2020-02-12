@@ -87,6 +87,21 @@ Tests against the reference C++ implementation can be run with
 `cargo test --features cpp`. Note that you will need to have the C++ Snappy
 library in your `LD_LIBRARY_PATH` (or equivalent).
 
+To run tests, you'll need to explicitly run the `test` crate:
+
+```
+$ cargo test --manifest-path test/Cargo.toml
+```
+
+To test that this library matches the output of the reference C++ library, use:
+
+```
+$ cargo test --manifest-path test/Cargo.toml --features cpp
+```
+
+Tests are in a separate crate because of the dependency on the C++ reference
+library. Namely, Cargo does not yet permit optional dev dependencies.
+
 ### Performance
 
 The performance of this implementation should roughly match the performance of

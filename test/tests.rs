@@ -1,9 +1,8 @@
 use quickcheck::{QuickCheck, StdGen, TestResult};
+use snap::raw::{decompress_len, Decoder, Encoder};
+use snap::Error;
 #[cfg(feature = "cpp")]
 use snappy_cpp as cpp;
-
-use crate::raw::{decompress_len, Decoder, Encoder};
-use crate::Error;
 
 // roundtrip is a macro that compresses the input, then decompresses the result
 // and compares it with the original input. If they are not equal, then the
@@ -283,7 +282,7 @@ fn decompress_copy_close_to_end_2() {
 // size, so let's test both. Also, very small buffers are a good stress test.
 #[test]
 fn read_frame_encoder_big_and_little_buffers() {
-    use crate::read;
+    use snap::read;
     use std::io::{BufReader, Read};
 
     let bytes = &include_bytes!("../data/html")[..];
@@ -535,7 +534,7 @@ fn depress(bytes: &[u8]) -> Vec<u8> {
 }
 
 fn write_frame_press(bytes: &[u8]) -> Vec<u8> {
-    use crate::write;
+    use snap::write;
     use std::io::Write;
 
     let mut wtr = write::FrameEncoder::new(vec![]);
@@ -544,7 +543,7 @@ fn write_frame_press(bytes: &[u8]) -> Vec<u8> {
 }
 
 fn read_frame_depress(bytes: &[u8]) -> Vec<u8> {
-    use crate::read;
+    use snap::read;
     use std::io::Read;
 
     let mut buf = vec![];
@@ -553,7 +552,7 @@ fn read_frame_depress(bytes: &[u8]) -> Vec<u8> {
 }
 
 fn read_frame_press(bytes: &[u8]) -> Vec<u8> {
-    use crate::read;
+    use snap::read;
     use std::io::Read;
 
     let mut buf = vec![];
@@ -563,7 +562,7 @@ fn read_frame_press(bytes: &[u8]) -> Vec<u8> {
 
 #[cfg(feature = "cpp")]
 fn press_cpp(bytes: &[u8]) -> Vec<u8> {
-    use crate::compress::max_compress_len;
+    use snap::raw::max_compress_len;
 
     let mut buf = vec![0; max_compress_len(bytes.len())];
     let n = cpp::compress(bytes, &mut buf).unwrap();
