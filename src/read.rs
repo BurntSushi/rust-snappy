@@ -19,10 +19,11 @@ use std::io;
 
 use crate::bytes;
 use crate::compress::Encoder;
+use crate::crc32::CheckSummer;
 use crate::decompress::{decompress_len, Decoder};
 use crate::error::Error;
 use crate::frame::{
-    compress_frame, crc32c_masked, ChunkType, CHUNK_HEADER_AND_CRC_SIZE,
+    compress_frame, ChunkType, CHUNK_HEADER_AND_CRC_SIZE,
     MAX_COMPRESS_BLOCK_SIZE, STREAM_BODY, STREAM_IDENTIFIER,
 };
 use crate::MAX_BLOCK_SIZE;
@@ -49,6 +50,10 @@ pub struct FrameDecoder<R: io::Read> {
     /// A Snappy decoder that we reuse that does the actual block based
     /// decompression.
     dec: Decoder,
+    /// A CRC32 checksummer that is configured to either use the portable
+    /// fallback version or the SSE4.2 accelerated version when the right CPU
+    /// features are available.
+    checksummer: CheckSummer,
     /// The compressed bytes buffer, taken from the underlying reader.
     src: Vec<u8>,
     /// The decompressed bytes buffer. Bytes are decompressed from src to dst
@@ -68,6 +73,7 @@ impl<R: io::Read> FrameDecoder<R> {
         FrameDecoder {
             r: rdr,
             dec: Decoder::new(),
+            checksummer: CheckSummer::new(),
             src: vec![0; MAX_COMPRESS_BLOCK_SIZE],
             dst: vec![0; MAX_BLOCK_SIZE],
             dsts: 0,
@@ -161,7 +167,8 @@ impl<R: io::Read> io::Read for FrameDecoder<R> {
                         });
                     }
                     self.r.read_exact(&mut self.dst[0..n])?;
-                    let got_sum = crc32c_masked(&self.dst[0..n]);
+                    let got_sum =
+                        self.checksummer.crc32c_masked(&self.dst[0..n]);
                     if expected_sum != got_sum {
                         fail!(Error::Checksum {
                             expected: expected_sum,
@@ -190,7 +197,8 @@ impl<R: io::Read> io::Read for FrameDecoder<R> {
                     }
                     self.dec
                         .decompress(&self.src[0..sn], &mut self.dst[0..dn])?;
-                    let got_sum = crc32c_masked(&self.dst[0..dn]);
+                    let got_sum =
+                        self.checksummer.crc32c_masked(&self.dst[0..dn]);
                     if expected_sum != got_sum {
                         fail!(Error::Checksum {
                             expected: expected_sum,
@@ -210,6 +218,7 @@ impl<R: fmt::Debug + io::Read> fmt::Debug for FrameDecoder<R> {
         f.debug_struct("FrameDecoder")
             .field("r", &self.r)
             .field("dec", &self.dec)
+            .field("checksummer", &self.checksummer)
             .field("src", &"[...]")
             .field("dst", &"[...]")
             .field("dsts", &self.dsts)
@@ -253,6 +262,10 @@ struct Inner<R: io::Read> {
     r: R,
     /// An encoder that we reuse that does the actual block based compression.
     enc: Encoder,
+    /// A CRC32 checksummer that is configured to either use the portable
+    /// fallback version or the SSE4.2 accelerated version when the right CPU
+    /// features are available.
+    checksummer: CheckSummer,
     /// Data taken from the underlying `r`, and not yet compressed.
     src: Vec<u8>,
     /// Have we written the standard snappy header to `dst` yet?
@@ -266,6 +279,7 @@ impl<R: io::Read> FrameEncoder<R> {
             inner: Inner {
                 r: rdr,
                 enc: Encoder::new(),
+                checksummer: CheckSummer::new(),
                 src: vec![0; MAX_BLOCK_SIZE],
                 wrote_stream_ident: false,
             },
@@ -352,6 +366,7 @@ impl<R: io::Read> Inner<R> {
         // put the output in `dst`.
         let frame_data = compress_frame(
             &mut self.enc,
+            self.checksummer,
             &self.src[..nread],
             chunk_header,
             remaining_dst,
@@ -377,6 +392,7 @@ impl<R: fmt::Debug + io::Read> fmt::Debug for Inner<R> {
         f.debug_struct("Inner")
             .field("r", &self.r)
             .field("enc", &self.enc)
+            .field("checksummer", &self.checksummer)
             .field("src", &"[...]")
             .field("wrote_stream_ident", &self.wrote_stream_ident)
             .finish()

@@ -73,8 +73,6 @@ fn write_crc_tables(out_dir: &Path) -> Result<()> {
     let table = make_table(CASTAGNOLI_POLY);
     let table16 = make_table16(CASTAGNOLI_POLY);
 
-    writeln!(out, "pub const CASTAGNOLI_POLY: u32 = {};\n", CASTAGNOLI_POLY)?;
-
     writeln!(out, "pub const TABLE: [u32; 256] = [")?;
     for &x in table.iter() {
         writeln!(out, "    {},", x)?;
