@@ -13,6 +13,7 @@ use std::fmt;
 use std::io::{self, Write};
 
 use crate::compress::Encoder;
+use crate::crc32::CheckSummer;
 pub use crate::error::IntoInnerError;
 use crate::frame::{
     compress_frame, CHUNK_HEADER_AND_CRC_SIZE, MAX_COMPRESS_BLOCK_SIZE,
@@ -52,6 +53,10 @@ struct Inner<W> {
     w: W,
     /// An encoder that we reuse that does the actual block based compression.
     enc: Encoder,
+    /// A CRC32 checksummer that is configured to either use the portable
+    /// fallback version or the SSE4.2 accelerated version when the right CPU
+    /// features are available.
+    checksummer: CheckSummer,
     /// The compressed bytes buffer. Bytes are compressed from src (usually)
     /// to dst before being written to w.
     dst: Vec<u8>,
@@ -70,6 +75,7 @@ impl<W: io::Write> FrameEncoder<W> {
             inner: Some(Inner {
                 w: wtr,
                 enc: Encoder::new(),
+                checksummer: CheckSummer::new(),
                 dst: vec![0; MAX_COMPRESS_BLOCK_SIZE],
                 wrote_stream_ident: false,
                 chunk_header: [0; CHUNK_HEADER_AND_CRC_SIZE],
@@ -164,6 +170,7 @@ impl<W: io::Write> Inner<W> {
 
             let frame_data = compress_frame(
                 &mut self.enc,
+                self.checksummer,
                 src,
                 &mut self.chunk_header,
                 &mut self.dst,
@@ -191,6 +198,7 @@ impl<W: fmt::Debug + io::Write> fmt::Debug for Inner<W> {
         f.debug_struct("Inner")
             .field("w", &self.w)
             .field("enc", &self.enc)
+            .field("checksummer", &self.checksummer)
             .field("dst", &"[...]")
             .field("wrote_stream_ident", &self.wrote_stream_ident)
             .field("chunk_header", &self.chunk_header)

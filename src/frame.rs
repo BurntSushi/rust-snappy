@@ -1,6 +1,6 @@
 use crate::bytes;
 use crate::compress::{max_compress_len, Encoder};
-use crate::crc32::crc32c;
+use crate::crc32::CheckSummer;
 use crate::error::Error;
 use crate::MAX_BLOCK_SIZE;
 
@@ -49,13 +49,6 @@ impl ChunkType {
     }
 }
 
-pub fn crc32c_masked(buf: &[u8]) -> u32 {
-    // TODO(burntsushi): SSE 4.2 has a CRC32 instruction that is probably
-    // faster. Oh how I long for you, SIMD. See src/crc32.rs for a lamentation.
-    let sum = crc32c(buf);
-    (sum.wrapping_shr(15) | sum.wrapping_shl(17)).wrapping_add(0xA282EAD8)
-}
-
 /// Compress a single frame (or decide to pass it through uncompressed). This
 /// will output a frame header in `dst_chunk_header`, and it will return a slice
 /// pointing to the data to use in the frame. The `dst_chunk_header` array must
@@ -68,6 +61,7 @@ pub fn crc32c_masked(buf: &[u8]) -> u32 {
 /// for a single function to always be in charge of writing to `dst`.
 pub fn compress_frame<'a>(
     enc: &mut Encoder,
+    checksummer: CheckSummer,
     src: &'a [u8],
     dst_chunk_header: &mut [u8],
     dst: &'a mut [u8],
@@ -79,7 +73,7 @@ pub fn compress_frame<'a>(
     assert_eq!(dst_chunk_header.len(), CHUNK_HEADER_AND_CRC_SIZE);
 
     // Build a checksum of our _uncompressed_ data.
-    let checksum = crc32c_masked(src);
+    let checksum = checksummer.crc32c_masked(src);
 
     // Compress the buffer. If compression sucked, throw it out and
     // write uncompressed bytes instead. Since our buffer is at most
