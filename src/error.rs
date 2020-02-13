@@ -5,11 +5,11 @@ use std::result;
 /// A convenient type alias for `Result<T, snap::Error>`.
 pub type Result<T> = result::Result<T, Error>;
 
-/// `IntoInnerError` occurs when consuming a `Writer` fails.
+/// `IntoInnerError` occurs when consuming an encoder fails.
 ///
-/// Consuming the `Writer` causes a flush to happen. If the flush fails, then
-/// this error is returned, which contains both the original `Writer` and
-/// the error that occurred.
+/// Consuming the encoder causes a flush to happen. If the flush fails, then
+/// this error is returned, which contains both the original encoder and the
+/// error that occurred.
 ///
 /// The type parameter `W` is the unconsumed writer.
 pub struct IntoInnerError<W> {
