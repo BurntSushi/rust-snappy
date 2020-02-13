@@ -13,9 +13,11 @@ and the
 
 Licensed under the BSD 3-Clause.
 
+
 ### Documentation
 
 https://docs.rs/snap
+
 
 ### Usage
 
@@ -25,6 +27,7 @@ Add this to your `Cargo.toml`:
 [dependencies]
 snap = "0.2"
 ```
+
 
 ### Example: compress data on `stdin`
 
@@ -45,6 +48,7 @@ fn main() {
 }
 ```
 
+
 ### Example: decompress data on `stdin`
 
 This program reads data from `stdin`, decompresses it and emits it to `stdout`.
@@ -64,6 +68,7 @@ fn main() {
 }
 ```
 
+
 ### Example: the szip tool
 
 `szip` is a tool with similar behavior as `gzip`, except it uses Snappy
@@ -75,6 +80,7 @@ $ cargo install szip
 
 To compress a file, run `szip file`. To decompress a file, run
 `szip -d file.sz`. See `szip --help` for more details.
+
 
 ### Testing
 
@@ -102,6 +108,7 @@ $ cargo test --manifest-path test/Cargo.toml --features cpp
 Tests are in a separate crate because of the dependency on the C++ reference
 library. Namely, Cargo does not yet permit optional dev dependencies.
 
+
 ### Performance
 
 The performance of this implementation should roughly match the performance of
@@ -109,67 +116,93 @@ the C++ implementation on x86_64. Below are the results of the microbenchmarks
 (as defined in the C++ library):
 
 ```
-name             cpp ns/iter           rust ns/iter         diff ns/iter   diff %
-uflat00_html     45,097 (2270 MB/s)    44,372 (2307 MB/s)           -725   -1.61%
-uflat01_urls     496,988 (1412 MB/s)   475,693 (1475 MB/s)       -21,295   -4.28%
-uflat02_jpg      4,800 (25644 MB/s)    4,935 (24942 MB/s)            135    2.81%
-uflat03_jpg_200  144 (1388 MB/s)       127 (1574 MB/s)               -17  -11.81%
-uflat04_pdf      6,699 (15285 MB/s)    6,586 (15548 MB/s)           -113   -1.69%
-uflat05_html4    187,082 (2189 MB/s)   184,941 (2214 MB/s)        -2,141   -1.14%
-uflat06_txt1     152,245 (998 MB/s)    152,185 (999 MB/s)            -60   -0.04%
-uflat07_txt2     134,235 (932 MB/s)    135,057 (926 MB/s)            822    0.61%
-uflat08_txt3     407,234 (1047 MB/s)   418,990 (1018 MB/s)        11,756    2.89%
-uflat09_txt4     563,671 (854 MB/s)    580,281 (830 MB/s)         16,610    2.95%
-uflat10_pb       42,207 (2809 MB/s)    41,624 (2849 MB/s)           -583   -1.38%
-uflat11_gaviota  159,276 (1157 MB/s)   153,006 (1204 MB/s)        -6,270   -3.94%
-zflat00_html     108,043 (947 MB/s)    104,306 (981 MB/s)         -3,737   -3.46%
-zflat01_urls     1,416,005 (495 MB/s)  1,305,846 (537 MB/s)     -110,159   -7.78%
-zflat02_jpg      8,260 (14902 MB/s)    8,372 (14702 MB/s)            112    1.36%
-zflat03_jpg_200  329 (607 MB/s)        247 (809 MB/s)                -82  -24.92%
-zflat04_pdf      12,279 (8339 MB/s)    11,351 (9021 MB/s)           -928   -7.56%
-zflat05_html4    465,677 (879 MB/s)    448,619 (913 MB/s)        -17,058   -3.66%
-zflat06_txt1     461,344 (329 MB/s)    442,385 (343 MB/s)        -18,959   -4.11%
-zflat07_txt2     409,416 (305 MB/s)    393,293 (318 MB/s)        -16,123   -3.94%
-zflat08_txt3     1,194,880 (357 MB/s)  1,178,756 (362 MB/s)      -16,124   -1.35%
-zflat09_txt4     1,638,914 (294 MB/s)  1,614,618 (298 MB/s)      -24,296   -1.48%
-zflat10_pb       100,514 (1179 MB/s)   97,523 (1216 MB/s)         -2,991   -2.98%
-zflat11_gaviota  358,002 (514 MB/s)    326,086 (565 MB/s)        -31,916   -8.92%
+group                         snappy/cpp/                            snappy/snap/
+-----                         -----------                            ------------
+compress/zflat00_html         1.00     94.5±0.62µs  1033.1 MB/sec    1.02     96.1±0.74µs  1016.2 MB/sec
+compress/zflat01_urls         1.00   1182.3±8.89µs   566.3 MB/sec    1.04  1235.3±11.99µs   542.0 MB/sec
+compress/zflat02_jpg          1.00      7.2±0.11µs    15.9 GB/sec    1.01      7.3±0.06µs    15.8 GB/sec
+compress/zflat03_jpg_200      1.10    262.4±1.84ns   727.0 MB/sec    1.00    237.5±2.95ns   803.2 MB/sec
+compress/zflat04_pdf          1.02     10.3±0.18µs     9.2 GB/sec    1.00     10.1±0.16µs     9.4 GB/sec
+compress/zflat05_html4        1.00    399.2±5.36µs   978.4 MB/sec    1.01    404.0±2.46µs   966.8 MB/sec
+compress/zflat06_txt1         1.00    397.3±2.61µs   365.1 MB/sec    1.00    398.5±3.06µs   364.0 MB/sec
+compress/zflat07_txt2         1.00    352.8±3.20µs   338.4 MB/sec    1.01    355.2±5.01µs   336.1 MB/sec
+compress/zflat08_txt3         1.01   1058.8±6.85µs   384.4 MB/sec    1.00   1051.8±6.74µs   386.9 MB/sec
+compress/zflat09_txt4         1.00   1444.1±8.10µs   318.2 MB/sec    1.00  1450.0±13.36µs   316.9 MB/sec
+compress/zflat10_pb           1.00     85.1±0.58µs  1328.6 MB/sec    1.02     87.0±0.90µs  1300.2 MB/sec
+compress/zflat11_gaviota      1.07    311.9±4.27µs   563.5 MB/sec    1.00    291.9±1.86µs   602.3 MB/sec
+decompress/uflat00_html       1.03     36.9±0.28µs     2.6 GB/sec    1.00     36.0±0.25µs     2.7 GB/sec
+decompress/uflat01_urls       1.04    437.4±2.89µs  1530.7 MB/sec    1.00    419.9±3.10µs  1594.6 MB/sec
+decompress/uflat02_jpg        1.00      4.6±0.05µs    24.9 GB/sec    1.00      4.6±0.03µs    25.0 GB/sec
+decompress/uflat03_jpg_200    1.08    122.4±1.06ns  1558.6 MB/sec    1.00    112.8±1.35ns  1690.8 MB/sec
+decompress/uflat04_pdf        1.00      5.7±0.05µs    16.8 GB/sec    1.10      6.2±0.07µs    15.3 GB/sec
+decompress/uflat05_html4      1.01    164.1±1.71µs     2.3 GB/sec    1.00    162.6±2.16µs     2.3 GB/sec
+decompress/uflat06_txt1       1.08    146.6±1.01µs   989.5 MB/sec    1.00    135.3±1.11µs  1072.0 MB/sec
+decompress/uflat07_txt2       1.09    130.2±0.93µs   916.6 MB/sec    1.00    119.2±0.96µs  1001.8 MB/sec
+decompress/uflat08_txt3       1.07    387.2±2.30µs  1051.0 MB/sec    1.00    361.9±6.29µs  1124.7 MB/sec
+decompress/uflat09_txt4       1.09    536.1±3.47µs   857.2 MB/sec    1.00    494.0±5.05µs   930.2 MB/sec
+decompress/uflat10_pb         1.00     32.5±0.19µs     3.4 GB/sec    1.05     34.0±0.48µs     3.2 GB/sec
+decompress/uflat11_gaviota    1.00    142.1±2.05µs  1236.7 MB/sec    1.00    141.5±0.92µs  1242.3 MB/sec
 ```
 
-Notes: These benchmarks were run with Snappy/C++ on commit `32d6d7` with debug
-assertions disabled. Both the C++ and Rust benchmarks were run with the same
-benchmark harness. Benchmarks were run on an Intel i7-6900K.
+Notes: These benchmarks were run with Snappy/C++ 1.1.8. Both the C++ and Rust
+benchmarks were run with the same benchmark harness. Benchmarks were run on an
+Intel i7-6900K.
 
-For reference, here are the benchmarks run on the same machine from the Go
+Additionally, here are the benchmarks run on the same machine from the Go
 implementation of Snappy (which has a hand rolled implementation in Assembly).
-Note that these were run using Go's microbenchmark tool.
+Note that these were run using Go's microbenchmark tool, so the numbers may not
+be directly comparable, but they should serve as a useful signpost:
 
 ```
-Benchmark_UFlat0           20000             50325 ns/op        2034.75 MB/s
-Benchmark_UFlat1            3000            518867 ns/op        1353.11 MB/s
-Benchmark_UFlat2          300000              5934 ns/op        20741.56 MB/s
-Benchmark_UFlat3        20000000               113 ns/op        1766.48 MB/s
-Benchmark_UFlat4          200000              7124 ns/op        14372.85 MB/s
-Benchmark_UFlat5           10000            218680 ns/op        1873.05 MB/s
-Benchmark_UFlat6           10000            193376 ns/op         786.49 MB/s
-Benchmark_UFlat7           10000            165456 ns/op         756.57 MB/s
-Benchmark_UFlat8            3000            505216 ns/op         844.69 MB/s
-Benchmark_UFlat9            2000            678399 ns/op         710.29 MB/s
-Benchmark_UFlat10          30000             42303 ns/op        2803.29 MB/s
-Benchmark_UFlat11          10000            186899 ns/op         986.20 MB/s
-Benchmark_ZFlat0           10000            102311 ns/op        1000.86 MB/s
-Benchmark_ZFlat1            1000           1336789 ns/op         525.20 MB/s
-Benchmark_ZFlat2          200000              8480 ns/op        14515.18 MB/s
-Benchmark_ZFlat3         5000000               267 ns/op         746.44 MB/s
-Benchmark_ZFlat4          200000             11749 ns/op        8715.03 MB/s
-Benchmark_ZFlat5            3000            436820 ns/op         937.68 MB/s
-Benchmark_ZFlat6            3000            422042 ns/op         360.36 MB/s
-Benchmark_ZFlat7            5000            376019 ns/op         332.91 MB/s
-Benchmark_ZFlat8            2000           1133338 ns/op         376.55 MB/s
-Benchmark_ZFlat9            1000           1559530 ns/op         308.98 MB/s
-Benchmark_ZFlat10          20000             91263 ns/op        1299.41 MB/s
-Benchmark_ZFlat11           5000            323804 ns/op         569.23 MB/s
+Benchmark_UFlat0           25040             45180 ns/op        2266.49 MB/s
+Benchmark_UFlat1            2648            451475 ns/op        1555.10 MB/s
+Benchmark_UFlat2          229965              4788 ns/op        25709.01 MB/s
+Benchmark_UFlat3        11355555               101 ns/op        1973.65 MB/s
+Benchmark_UFlat4          196551              6055 ns/op        16912.64 MB/s
+Benchmark_UFlat5            6016            189219 ns/op        2164.68 MB/s
+Benchmark_UFlat6            6914            166371 ns/op         914.16 MB/s
+Benchmark_UFlat7            8173            142506 ns/op         878.41 MB/s
+Benchmark_UFlat8            2744            436424 ns/op         977.84 MB/s
+Benchmark_UFlat9            1999            591141 ns/op         815.14 MB/s
+Benchmark_UFlat10          28885             37291 ns/op        3180.04 MB/s
+Benchmark_UFlat11           7308            163366 ns/op        1128.26 MB/s
+Benchmark_ZFlat0           12902             91231 ns/op        1122.43 MB/s
+Benchmark_ZFlat1             997           1200579 ns/op         584.79 MB/s
+Benchmark_ZFlat2          136762              7832 ns/op        15716.53 MB/s
+Benchmark_ZFlat3         4896124               245 ns/op         817.27 MB/s
+Benchmark_ZFlat4          117643             10129 ns/op        10109.44 MB/s
+Benchmark_ZFlat5            2934            394742 ns/op        1037.64 MB/s
+Benchmark_ZFlat6            3008            382877 ns/op         397.23 MB/s
+Benchmark_ZFlat7            3411            344916 ns/op         362.93 MB/s
+Benchmark_ZFlat8             966           1057985 ns/op         403.36 MB/s
+Benchmark_ZFlat9             854           1429024 ns/op         337.20 MB/s
+Benchmark_ZFlat10          13861             83040 ns/op        1428.08 MB/s
+Benchmark_ZFlat11           4070            293952 ns/op         627.04 MB/s
 ```
+
+To run benchmarks, including the reference C++ implementation, do the
+following:
+
+```
+$ cd bench
+$ cargo bench --features cpp -- --save-baseline snappy
+```
+
+To compare them, as shown above, install
+[`critcmp`](https://github.com/BurntSushi/critcmp)
+and run (assuming you saved the baseline above under the name `snappy`):
+
+```
+$ critcmp snappy -g '.*?/(.*$)'
+```
+
+Finally, the Go benchmarks were run with the following command on commit
+`ff6b7dc8`:
+
+```
+$ go test -cpu 1 -bench Flat -download
+```
+
 
 ### Comparison with other Snappy crates
 
