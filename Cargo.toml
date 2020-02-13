@@ -26,3 +26,6 @@ debug = true
 
 [profile.test]
 opt-level = 3
+
+[dev-dependencies]
+doc-comment = "0.3.1"

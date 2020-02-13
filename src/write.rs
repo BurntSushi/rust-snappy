@@ -36,8 +36,8 @@ use crate::MAX_BLOCK_SIZE;
 pub struct FrameEncoder<W: io::Write> {
     /// Our main internal state, split out for borrowck reasons (happily paid).
     ///
-    /// Also, it's an `Option` so we can move out of it even though `Writer`
-    /// impls `Drop`.
+    /// Also, it's an `Option` so we can move out of it even though
+    /// `FrameEncoder` impls `Drop`.
     inner: Option<Inner<W>>,
     /// Our buffer of uncompressed bytes. This isn't part of `inner` because
     /// we may write bytes directly from the caller if the given buffer was

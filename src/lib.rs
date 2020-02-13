@@ -48,7 +48,7 @@ you automatically convert a Snappy error to an `std::io::Error` (when using
 This program reads data from `stdin`, compresses it and emits it to `stdout`.
 This example can be found in `examples/compress.rs`:
 
-```rust,ignore
+```no_run
 use std::io;
 
 fn main() {
@@ -57,7 +57,7 @@ fn main() {
 
     let mut rdr = stdin.lock();
     // Wrap the stdout writer in a Snappy writer.
-    let mut wtr = snap::Writer::new(stdout.lock());
+    let mut wtr = snap::write::FrameEncoder::new(stdout.lock());
     io::copy(&mut rdr, &mut wtr).expect("I/O operation failed");
 }
 ```
@@ -67,7 +67,7 @@ fn main() {
 This program reads data from `stdin`, decompresses it and emits it to `stdout`.
 This example can be found in `examples/decompress.rs`:
 
-```rust,ignore
+```no_run
 use std::io;
 
 fn main() {
@@ -83,6 +83,9 @@ fn main() {
 */
 
 #![deny(missing_docs)]
+
+#[cfg(test)]
+doc_comment::doctest!("../README.md");
 
 pub use crate::error::{Error, Result};
 
