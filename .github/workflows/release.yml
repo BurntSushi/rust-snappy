@@ -34,6 +34,8 @@ jobs:
           # Apparently, this is the right way to get a tag name. Really?
           #
           # See: https://github.community/t5/GitHub-Actions/How-to-get-just-the-tag-name/m-p/32167/highlight/true#M1027
+          echo "$GITHUB_REF"
+          echo "${GITHUB_REF#refs/tags/szip-}"
           echo "::set-output name=SZIP_VERSION::${GITHUB_REF#refs/tags/szip-}"
           echo "version is: ${{ env.SZIP_VERSION }}"
 
