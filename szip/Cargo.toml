@@ -1,6 +1,6 @@
 [package]
 name = "szip"
-version = "0.1.1"  #:version
+version = "1.0.0"  #:version
 authors = ["Andrew Gallant <jamslam@gmail.com>"]
 description = """
 A fast command line tool for snappy compression and decompression.
@@ -19,7 +19,7 @@ path = "main.rs"
 [dependencies]
 anyhow = "1.0.26"
 filetime = "0.2.8"
-snap = { path = "..", version = "0.2" }
+snap = { path = "..", version = "1.0.0" }
 
 [dependencies.clap]
 version = "2.33.0"
