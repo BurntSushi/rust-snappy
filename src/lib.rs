@@ -15,7 +15,7 @@ simply add it as a dependency to your `Cargo.toml`:
 
 ```ignore
 [dependencies]
-snap = "0.2"
+snap = "1"
 ```
 
 # Overview

@@ -25,7 +25,7 @@ Add this to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-snap = "0.2"
+snap = "1"
 ```
 
 
