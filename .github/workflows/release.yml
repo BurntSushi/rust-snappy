@@ -21,7 +21,7 @@ jobs:
   create-release:
     name: create-release
     runs-on: ubuntu-latest
-    env:
+    # env:
       # Set to force version number, e.g., when no tag exists.
       # SZIP_VERSION: 4.5.6
     steps:
