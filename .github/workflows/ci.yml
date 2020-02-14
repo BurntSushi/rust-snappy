@@ -86,19 +86,19 @@ jobs:
         echo "target flag is: ${{ env.TARGET }}"
 
     - name: Build snap library
-      run: ${{ env.CARGO }} build --verbose $TARGET
+      run: ${{ env.CARGO }} build --verbose ${{ env.TARGET }}
 
     - name: Build docs
-      run: ${{ env.CARGO }} doc --verbose $TARGET
+      run: ${{ env.CARGO }} doc --verbose ${{ env.TARGET }}
 
     - name: Run tests for snap
-      run: ${{ env.CARGO }} test --verbose --all $TARGET
+      run: ${{ env.CARGO }} test --verbose --all ${{ env.TARGET }}
 
     - name: Build szip CLI tool
-      run: ${{ env.CARGO }} build --verbose --manifest-path szip/Cargo.toml $TARGET
+      run: ${{ env.CARGO }} build --verbose --manifest-path szip/Cargo.toml ${{ env.TARGET }}
 
     - name: Compile benchmarks
-      run: ${{ env.CARGO }} bench --manifest-path bench/Cargo.toml --verbose $TARGET -- --test
+      run: ${{ env.CARGO }} bench --manifest-path bench/Cargo.toml --verbose ${{ env.TARGET }} -- --test
 
     # Only worry about snappy-cpp when not using cross, since it's a pain
     # otherwise to deal with cross compiling with a C++ library. Similarly,

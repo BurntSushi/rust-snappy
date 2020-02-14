@@ -6,9 +6,9 @@ description = """
 A fast command line tool for snappy compression and decompression.
 """
 documentation = "https://docs.rs/snap"
-homepage = "https://github.com/BurntSushi/rust-snappy"
-repository = "https://github.com/BurntSushi/rust-snappy"
-keywords = ["snappy", "compress", "compression", "decompress", "decompression"]
+homepage = "https://github.com/BurntSushi/rust-snappy/tree/master/szip"
+repository = "https://github.com/BurntSushi/rust-snappy/tree/master/szip"
+keywords = ["snappy", "compression", "decompression", "cli", "zip"]
 license = "BSD-3-Clause"
 edition = "2018"
 
