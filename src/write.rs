@@ -99,6 +99,14 @@ impl<W: io::Write> FrameEncoder<W> {
     pub fn get_ref(&self) -> &W {
         &self.inner.as_ref().unwrap().w
     }
+
+    /// Gets a reference to the underlying writer in this encoder.
+    ///
+    /// Note that mutating the output/input state of the stream may corrupt
+    /// this encoder, so care must be taken when using this method.
+    pub fn get_mut(&mut self) -> &mut W {
+        &mut self.inner.as_mut().unwrap().w
+    }
 }
 
 impl<W: io::Write> Drop for FrameEncoder<W> {

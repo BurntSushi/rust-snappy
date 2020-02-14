@@ -86,6 +86,14 @@ impl<R: io::Read> FrameDecoder<R> {
     pub fn get_ref(&self) -> &R {
         &self.r
     }
+
+    /// Gets a mutable reference to the underlying reader in this decoder.
+    ///
+    /// Note that mutation of the stream may result in surprising results if
+    /// this decoder is continued to be used.
+    pub fn get_mut(&mut self) -> &mut R {
+        &mut self.r
+    }
 }
 
 impl<R: io::Read> io::Read for FrameDecoder<R> {
@@ -292,6 +300,14 @@ impl<R: io::Read> FrameEncoder<R> {
     /// Gets a reference to the underlying reader in this decoder.
     pub fn get_ref(&self) -> &R {
         &self.inner.r
+    }
+
+    /// Gets a mutable reference to the underlying reader in this decoder.
+    ///
+    /// Note that mutation of the stream may result in surprising results if
+    /// this encoder is continued to be used.
+    pub fn get_mut(&mut self) -> &mut R {
+        &mut self.inner.r
     }
 
     /// Read previously compressed data from `self.dst`, returning the number of
