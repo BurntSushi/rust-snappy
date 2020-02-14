@@ -73,8 +73,8 @@ compression. It can be installed with Cargo:
 $ cargo install szip
 ```
 
-To compress a file, run `szip file`. To decompress a file, run `szip -d
-file.sz`. See `szip --help` for more details.
+To compress a file, run `szip file`. To decompress a file, run
+`szip -d file.sz`. See `szip --help` for more details.
 
 ### Testing
 
