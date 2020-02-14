@@ -17,6 +17,7 @@ name = "szip"
 path = "main.rs"
 
 [dependencies]
+anyhow = "1.0.26"
 filetime = "0.2.8"
 snap = { path = "..", version = "0.2" }
 
