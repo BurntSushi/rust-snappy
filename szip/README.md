@@ -51,7 +51,7 @@ Like compression, `some-file` will be written with the uncompressed data
 and `some-file.sz` will be removed. Use the `-k/--keep` flag to retain
 `some-file.sz`.
 
-szip can only compress or decompress streams:
+szip can also compress or decompress streams:
 
 ```
 $ szip < some-file | szip -d > same-file
