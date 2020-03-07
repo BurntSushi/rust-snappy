@@ -74,7 +74,7 @@ fn main() {
 `szip` is a tool with similar behavior as `gzip`, except it uses Snappy
 compression. It can be installed with Cargo:
 
-```
+```ignore
 $ cargo install szip
 ```
 
@@ -95,13 +95,13 @@ library in your `LD_LIBRARY_PATH` (or equivalent).
 
 To run tests, you'll need to explicitly run the `test` crate:
 
-```
+```ignore
 $ cargo test --manifest-path test/Cargo.toml
 ```
 
 To test that this library matches the output of the reference C++ library, use:
 
-```
+```ignore
 $ cargo test --manifest-path test/Cargo.toml --features cpp
 ```
 
@@ -129,7 +129,7 @@ The performance of this implementation should roughly match the performance of
 the C++ implementation on x86_64. Below are the results of the microbenchmarks
 (as defined in the C++ library):
 
-```
+```ignore
 group                         snappy/cpp/                            snappy/snap/
 -----                         -----------                            ------------
 compress/zflat00_html         1.00     94.5±0.62µs  1033.1 MB/sec    1.02     96.1±0.74µs  1016.2 MB/sec
@@ -167,7 +167,7 @@ implementation of Snappy (which has a hand rolled implementation in Assembly).
 Note that these were run using Go's microbenchmark tool, so the numbers may not
 be directly comparable, but they should serve as a useful signpost:
 
-```
+```ignore
 Benchmark_UFlat0           25040             45180 ns/op        2266.49 MB/s
 Benchmark_UFlat1            2648            451475 ns/op        1555.10 MB/s
 Benchmark_UFlat2          229965              4788 ns/op        25709.01 MB/s
@@ -197,7 +197,7 @@ Benchmark_ZFlat11           4070            293952 ns/op         627.04 MB/s
 To run benchmarks, including the reference C++ implementation, do the
 following:
 
-```
+```ignore
 $ cd bench
 $ cargo bench --features cpp -- --save-baseline snappy
 ```
@@ -206,14 +206,14 @@ To compare them, as shown above, install
 [`critcmp`](https://github.com/BurntSushi/critcmp)
 and run (assuming you saved the baseline above under the name `snappy`):
 
-```
+```ignore
 $ critcmp snappy -g '.*?/(.*$)'
 ```
 
 Finally, the Go benchmarks were run with the following command on commit
 `ff6b7dc8`:
 
-```
+```ignore
 $ go test -cpu 1 -bench Flat -download
 ```
 

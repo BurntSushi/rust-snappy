@@ -84,7 +84,7 @@ fn main() {
 
 #![deny(missing_docs)]
 
-#[cfg(test)]
+#[cfg(doctest)]
 doc_comment::doctest!("../README.md");
 
 pub use crate::error::{Error, Result};
