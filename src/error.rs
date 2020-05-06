@@ -153,9 +153,8 @@ pub enum Error {
         /// The chunk type byte that was read.
         byte: u8,
     },
-    /// This error occurs when trying to read a chunk with length greater than
-    /// that supported by this library when reading a Snappy frame formatted
-    /// stream.
+    /// This error occurs when trying to read a chunk with an unexpected or
+    /// incorrect length when reading a Snappy frame formatted stream.
     /// This error only occurs when reading a Snappy frame formatted stream.
     UnsupportedChunkLength {
         /// The length of the chunk encountered.
