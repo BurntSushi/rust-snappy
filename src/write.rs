@@ -5,7 +5,7 @@ This module provides a `std::io::Write` implementation:
   compresses data encoded using the Snappy frame format. Use this if you have
   uncompressed data source and wish to write it as compressed data.
 
-It would also be possible to provide a `write::FrameEncoder`, which decompresses
+It would also be possible to provide a `write::FrameDecoder`, which decompresses
 data as it writes it, but it hasn't been implemented yet.
 */
 
