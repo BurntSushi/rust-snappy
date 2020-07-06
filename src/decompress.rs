@@ -414,7 +414,7 @@ impl TagEntry {
         self.0 >> 11
     }
 
-    /// Return the total copy length, capped at 64.
+    /// Return the total copy length, capped at 255.
     fn len(&self) -> usize {
         self.0 & 0xFF
     }
