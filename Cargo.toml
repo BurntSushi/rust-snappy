@@ -1,6 +1,6 @@
 [package]
 name = "snap"
-version = "1.0.0"  #:version
+version = "1.0.1"  #:version
 authors = ["Andrew Gallant <jamslam@gmail.com>"]
 description = """
 A pure Rust implementation of the Snappy compression algorithm. Includes
