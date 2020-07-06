@@ -166,6 +166,12 @@ impl<R: io::Read> io::Read for FrameDecoder<R> {
                     }
                 }
                 Ok(ChunkType::Uncompressed) => {
+                    if len < 4 {
+                        fail!(Error::UnsupportedChunkLength {
+                            len: len as u64,
+                            header: false,
+                        });
+                    }
                     let expected_sum = bytes::io_read_u32_le(&mut self.r)?;
                     let n = len - 4;
                     if n > self.dst.len() {
@@ -187,6 +193,12 @@ impl<R: io::Read> io::Read for FrameDecoder<R> {
                     self.dste = n;
                 }
                 Ok(ChunkType::Compressed) => {
+                    if len < 4 {
+                        fail!(Error::UnsupportedChunkLength {
+                            len: len as u64,
+                            header: false,
+                        });
+                    }
                     let expected_sum = bytes::io_read_u32_le(&mut self.r)?;
                     let sn = len - 4;
                     if sn > self.src.len() {
