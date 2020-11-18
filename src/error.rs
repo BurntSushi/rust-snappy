@@ -61,7 +61,7 @@ impl<W> fmt::Debug for IntoInnerError<W> {
 /// `From<snap::Error> for std::io::Error` is provided so that any Snappy
 /// errors will be converted to a `std::io::Error` automatically when using
 /// `try!`.
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub enum Error {
     /// This error occurs when the given input is too big. This can happen
     /// during compression or decompression.
