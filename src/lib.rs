@@ -10,7 +10,7 @@ decompress data at about 800 MB/sec or more.
 # Install
 
 To use this crate with
-[Cargo](http://doc.crates.io/index.html),
+[Cargo](https://doc.rust-lang.org/cargo/),
 simply add it as a dependency to your `Cargo.toml`:
 
 ```ignore
