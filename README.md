@@ -1,7 +1,7 @@
 snap
 ====
 A pure Rust implementation of the
-[Snappy compression algorithm](http://google.github.io/snappy/).
+[Snappy compression algorithm](https://google.github.io/snappy/).
 Includes streaming compression and decompression using the Snappy frame format.
 This implementation is ported from both the
 [reference C++ implementation](https://github.com/google/snappy)
@@ -9,7 +9,7 @@ and the
 [Go implementation](https://github.com/golang/snappy).
 
 [![Build status](https://github.com/BurntSushi/rust-snappy/workflows/ci/badge.svg)](https://github.com/BurntSushi/rust-snappy/actions)
-[![](http://meritbadge.herokuapp.com/snap)](https://crates.io/crates/snap)
+[![](https://meritbadge.herokuapp.com/snap)](https://crates.io/crates/snap)
 
 Licensed under the BSD 3-Clause.
 

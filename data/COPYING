@@ -14,10 +14,11 @@ Some of the benchmark data in in this directory is licensed thusly:
    “Combinatorial Modeling of Chromatin Features Quantitatively Predicts DNA
    Replication Timing in _Drosophila_” by Federico Comoglio and Renato Paro,
    which is licensed under the CC-BY license. See
-   http://www.ploscompbiol.org/static/license for more ifnormation.
+   https://journals.plos.org/ploscompbiol/s/licenses-and-copyright for more 
+   information.
 
  - alice29.txt, asyoulik.txt, plrabn12.txt and lcet10.txt are from Project
    Gutenberg. The first three have expired copyrights and are in the public
    domain; the latter does not have expired copyright, but is still in the
    public domain according to the license information
-   (http://www.gutenberg.org/ebooks/53).
+   (https://www.gutenberg.org/ebooks/53).
