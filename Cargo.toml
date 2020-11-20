@@ -13,6 +13,7 @@ readme = "README.md"
 keywords = ["snappy", "compress", "compression", "decompress", "decompression"]
 license = "BSD-3-Clause"
 edition = "2018"
+exclude = ["data/*"]
 
 [workspace]
 exclude = ["snappy-cpp"]
