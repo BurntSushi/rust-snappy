@@ -100,7 +100,7 @@ impl<R: io::Read> io::Read for FrameDecoder<R> {
     fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
         macro_rules! fail {
             ($err:expr) => {
-                return Err(io::Error::from($err));
+                return Err(io::Error::from($err))
             };
         }
         loop {
