@@ -496,6 +496,17 @@ fn qc_roundtrip_stream() {
 }
 
 #[test]
+fn test_short_input() {
+    // Regression test for https://github.com/BurntSushi/rust-snappy/issues/42
+    use snap::read;
+    use std::io::Read;
+
+    let err =
+        read::FrameDecoder::new(&b"123"[..]).read_to_end(&mut Vec::new());
+    assert_eq!(err.unwrap_err().kind(), std::io::ErrorKind::UnexpectedEof);
+}
+
+#[test]
 #[cfg(feature = "cpp")]
 fn qc_cmpcpp() {
     fn p(bytes: Vec<u8>) -> bool {
