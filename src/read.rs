@@ -427,18 +427,24 @@ impl<R: fmt::Debug + io::Read> fmt::Debug for Inner<R> {
     }
 }
 
-// read_exact_eof is like Read::read_exact, except it converts an UnexpectedEof
-// error to a bool of false.
+// read_exact_eof is like Read::read_exact, except it detects EOF
+// and returns Ok(false) instead of an error.
 //
-// If no error occurred, then this returns true.
+// If buf was read successfully, it returns Ok(true).
 fn read_exact_eof<R: io::Read>(
     rdr: &mut R,
     buf: &mut [u8],
 ) -> io::Result<bool> {
-    use std::io::ErrorKind::UnexpectedEof;
-    match rdr.read_exact(buf) {
-        Ok(()) => Ok(true),
-        Err(ref err) if err.kind() == UnexpectedEof => Ok(false),
-        Err(err) => Err(err),
+    match rdr.read(buf) {
+        // EOF
+        Ok(0) => Ok(false),
+        // Read everything w/ the read call
+        Ok(i) if i == buf.len() => Ok(true),
+        // There's some bytes left to fill, which can be deferred to read_exact
+        Ok(i) => {
+            rdr.read_exact(&mut buf[i..])?;
+            Ok(true)
+        }
+        Err(e) => Err(e),
     }
 }
