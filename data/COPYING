@@ -1,12 +1,11 @@
 Some of the benchmark data in in this directory is licensed thusly:
 
- - fireworks.jpeg is Copyright 2013 Steinar H. Gunderson, and
-   is licensed under the Creative Commons Attribution 3.0 license
-   (CC-BY-3.0). See https://creativecommons.org/licenses/by/3.0/
-   for more information.
+ - fireworks.jpeg is Copyright 2013 Steinar H. Gunderson, and is licensed under
+   the Creative Commons Attribution 3.0 license (CC-BY-3.0). See
+   https://creativecommons.org/licenses/by/3.0/ for more information.
 
- - kppkn.gtb is taken from the Gaviota chess tablebase set, and
-   is licensed under the MIT License. See
+ - kppkn.gtb is taken from the Gaviota chess tablebase set, and is licensed
+   under the MIT License. See
    https://sites.google.com/site/gaviotachessengine/Home/endgame-tablebases-1
    for more information.
 
@@ -14,7 +13,7 @@ Some of the benchmark data in in this directory is licensed thusly:
    “Combinatorial Modeling of Chromatin Features Quantitatively Predicts DNA
    Replication Timing in _Drosophila_” by Federico Comoglio and Renato Paro,
    which is licensed under the CC-BY license. See
-   https://journals.plos.org/ploscompbiol/s/licenses-and-copyright for more 
+   https://journals.plos.org/ploscompbiol/s/licenses-and-copyright for more
    information.
 
  - alice29.txt, asyoulik.txt, plrabn12.txt and lcet10.txt are from Project
