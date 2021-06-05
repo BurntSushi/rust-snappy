@@ -514,7 +514,7 @@ fn qc_cmpcpp() {
     }
     QuickCheck::new()
         .gen(StdGen::new(rand::thread_rng(), 10_000))
-        .tests(1_000)
+        .tests(10_000)
         .quickcheck(p as fn(_) -> _);
 }
 
