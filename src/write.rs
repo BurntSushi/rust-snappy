@@ -49,10 +49,10 @@ pub struct FrameDecoder<W: io::Write> {
     checksummer: CheckSummer,
     /// The compressed bytes buffer, taken from the underlying reader.
     src: Vec<u8>,
-    /// The current working starting position in `src`.
-    src_pos: usize,
-    /// The current working length of `src`, `src[src_pos..src_pos + src_len]`.
-    src_len: usize,
+    /// Index into src: starting point of bytes not yet decompressed.
+    srcs: usize,
+    /// Index into src: ending point of bytes not yet decompressed.
+    srce: usize,
     /// The decompressed bytes buffer. Bytes are decompressed from src to dst
     /// before being passed back to the caller.
     dst: Vec<u8>,
@@ -72,8 +72,8 @@ impl<W: io::Write> FrameDecoder<W> {
             dec: Decoder::new(),
             checksummer: CheckSummer::new(),
             src: vec![0; MAX_COMPRESS_BLOCK_SIZE],
-            src_pos: 0,
-            src_len: 0,
+            srcs: 0,
+            srce: 0,
             dst: vec![0; MAX_BLOCK_SIZE],
             dsts: 0,
             dste: 0,
@@ -100,26 +100,31 @@ impl<W: io::Write> FrameDecoder<W> {
         Ok(self.w.take().unwrap())
     }
 
-    /// Same as [`Self::read_exact`] but also advance the `src` pointer.
+    /// Same as [`Self::read_exact`] but also advance `srcs`.
+    ///
+    /// If this returns [`None`] (we don't have enough data), the pointer isn't advanced.
     fn advance_exact(&mut self, len: usize) -> Option<&[u8]> {
-        if len > self.src_len {
+        if len + self.srcs > self.srce {
             return None;
         }
-        let range = self.src_pos..self.src_pos + len;
-        self.src_pos += len;
-        self.src_len = self.src_len.checked_sub(len).unwrap();
+        let range = self.srcs..self.srcs + len;
+        self.srcs += len;
+        debug_assert!(self.srcs <= self.srce);
         self.src.get(range)
     }
     /// Read `len` bytes from `src` with a start offset of `start`.
     /// Returns [`None`] (which you should pass on to your caller) if
     /// we don't have enough data in `src`.
     fn read_exact(&self, start: usize, len: usize) -> Option<&[u8]> {
-        if len + start > self.src_len {
+        if len + self.srcs + start > self.srce {
             return None;
         }
-        Some(&self.src[self.src_pos + start..self.src_pos + start + len])
+        Some(&self.src[self.srcs + start..self.srcs + start + len])
     }
 
+    /// Tries to write data from the `src` buffer to our writer.
+    ///
+    /// Based of the implementation of [`crate::read::FrameDecoder`].
     fn write_from_buffer(&mut self) -> Option<io::Result<()>> {
         macro_rules! fail {
             ($err:expr) => {
@@ -146,7 +151,7 @@ impl<W: io::Write> FrameDecoder<W> {
             // we need &mut above, so get the reference again to please borrow checker
             let read = self.read_exact(0, 4)?;
             let len64 = bytes::read_u24_le(&read[1..]) as u64;
-            if len64 > self.src_len as u64 {
+            if len64 + self.srcs as u64 > self.srce as u64 {
                 return None;
             }
             let len = len64 as usize;
@@ -208,12 +213,11 @@ impl<W: io::Write> FrameDecoder<W> {
                     // inline self.read_exact due to needing to borrow both immutably and mutably
                     //
                     // self.read_exact(8, n)
-                    if n + 8 > self.src_len {
+                    if n + 8 + self.srcs > self.srce {
                         return None;
                     }
-                    let read = self
-                        .src
-                        .get(self.src_pos + 8..self.src_pos + 8 + n)?;
+                    let read =
+                        self.src.get(self.srcs + 8..self.srcs + 8 + n)?;
 
                     self.dst[0..n].copy_from_slice(read);
                     let got_sum =
@@ -224,6 +228,9 @@ impl<W: io::Write> FrameDecoder<W> {
                             got: got_sum,
                         });
                     }
+                    // we read 4 bytes for the chunk type + frame length,
+                    // 4 bytes for the expected sum,
+                    // and `n` bytes for the data.
                     self.advance_exact(8 + n).unwrap();
                     self.dsts = 0;
                     self.dste = n;
@@ -248,12 +255,11 @@ impl<W: io::Write> FrameDecoder<W> {
                     // inline self.read_exact due to needing to borrow both immutably and mutably
                     //
                     // self.read_exact(8, n)
-                    if sn + 8 > self.src_len {
+                    if sn + 8 + self.srcs > self.srce {
                         return None;
                     }
-                    let read = self
-                        .src
-                        .get(self.src_pos + 8..self.src_pos + 8 + sn)?;
+                    let read =
+                        self.src.get(self.srcs + 8..self.srcs + 8 + sn)?;
 
                     let dn = match decompress_len(read) {
                         Err(err) => fail!(err),
@@ -278,6 +284,9 @@ impl<W: io::Write> FrameDecoder<W> {
                             got: got_sum,
                         });
                     }
+                    // we read 4 bytes for the chunk type + frame length,
+                    // 4 bytes for the expected sum,
+                    // and `sn` bytes for the data.
                     self.advance_exact(8 + sn).unwrap();
                     self.dsts = 0;
                     self.dste = dn;
@@ -294,8 +303,10 @@ impl<W: io::Write> io::Write for FrameDecoder<W> {
             if let Some(r) = self.write_from_buffer() {
                 r?;
             } else {
+                // we can no longer provide more data to the implementation
+                // - request more from the caller.
                 if buf.is_empty() {
-                    return if self.src_len == 0 {
+                    return if self.srce == self.srcs {
                         Ok(initial_len - buf.len())
                     } else {
                         Err(io::Error::new(
@@ -305,15 +316,16 @@ impl<W: io::Write> io::Write for FrameDecoder<W> {
                     };
                 }
                 // move rest of src to start
-                self.src
-                    .copy_within(self.src_pos..self.src_pos + self.src_len, 0);
-                self.src_pos = 0;
+                let len = self.srce - self.srcs;
+                self.src.copy_within(self.srcs..self.srce, 0);
+                self.srce = len;
+                self.srcs = 0;
 
                 // copy more from `buf`
-                let len = cmp::min(self.src.len() - self.src_len, buf.len());
-                self.src[self.src_len..self.src_len + len]
+                let len = cmp::min(self.src.len() - self.srce, buf.len());
+                self.src[self.srce..self.srce + len]
                     .copy_from_slice(&buf[..len]);
-                self.src_len += len;
+                self.srce += len;
                 buf = &buf[len..];
             }
         }
@@ -321,7 +333,7 @@ impl<W: io::Write> io::Write for FrameDecoder<W> {
     fn flush(&mut self) -> io::Result<()> {
         let r = if let Some(r) = self.write_from_buffer() {
             r.map(|_| ())
-        } else if self.src_len == 0 {
+        } else if self.srce == self.srcs {
             Ok(())
         } else {
             Err(io::Error::new(
@@ -351,8 +363,8 @@ impl<W: fmt::Debug + io::Write> fmt::Debug for FrameDecoder<W> {
             .field("dec", &self.dec)
             .field("checksummer", &self.checksummer)
             .field("src", &"[...]")
-            .field("src_pos", &self.src_pos)
-            .field("src_len", &self.src_len)
+            .field("src_pos", &self.srcs)
+            .field("src_len", &self.srce)
             .field("dst", &"[...]")
             .field("dsts", &self.dsts)
             .field("dste", &self.dste)
