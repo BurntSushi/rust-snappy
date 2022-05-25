@@ -57,6 +57,8 @@ pub struct FrameDecoder<W: io::Write> {
     /// before being passed back to the caller.
     dst: Vec<u8>,
     /// Index into dst: starting point of bytes not yet given back to caller.
+    ///
+    /// This is always 0, but is kept to be coherent.
     dsts: usize,
     /// Index into dst: ending point of bytes not yet given back to caller.
     dste: usize,
@@ -133,11 +135,13 @@ impl<W: io::Write> FrameDecoder<W> {
         }
         loop {
             if self.dsts < self.dste {
-                let len = self.dste - self.dsts;
-                let dste = self.dsts.checked_add(len).unwrap();
-                let r =
-                    self.w.as_mut().unwrap().write(&self.dst[self.dsts..dste]);
-                self.dsts = dste;
+                let r = self
+                    .w
+                    .as_mut()
+                    .unwrap()
+                    .write(&self.dst[self.dsts..self.dste]);
+                self.dsts = 0;
+                self.dste = 0;
                 return Some(r.map(|_| ()));
             }
             let first_byte = self.read_exact(0, 4)?[0];
