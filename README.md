@@ -9,7 +9,7 @@ and the
 [Go implementation](https://github.com/golang/snappy).
 
 [![Build status](https://github.com/BurntSushi/rust-snappy/workflows/ci/badge.svg)](https://github.com/BurntSushi/rust-snappy/actions)
-[![](https://meritbadge.herokuapp.com/snap)](https://crates.io/crates/snap)
+[![Crates.io](https://img.shields.io/crates/v/snap.svg)](https://crates.io/crates/snap)
 
 Licensed under the BSD 3-Clause.
 

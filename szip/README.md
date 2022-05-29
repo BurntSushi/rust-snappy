@@ -4,7 +4,7 @@ A pure Rust command line tool for compressing and decompressing Snappy files.
 By default, this tool uses the Snappy frame format.
 
 [![Build status](https://github.com/BurntSushi/rust-snappy/workflows/ci/badge.svg)](https://github.com/BurntSushi/rust-snappy/actions)
-[![](https://meritbadge.herokuapp.com/szip)](https://crates.io/crates/szip)
+[![Crates.io](https://img.shields.io/crates/v/szip.svg)](https://crates.io/crates/szip)
 
 Licensed under the BSD 3-Clause.
 
