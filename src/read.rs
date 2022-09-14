@@ -94,6 +94,24 @@ impl<R: io::Read> FrameDecoder<R> {
     pub fn get_mut(&mut self) -> &mut R {
         &mut self.r
     }
+
+    /// Resets the internal state of this decoder and sets a new underlying
+    /// reader.
+    ///
+    /// This can make the decoder reusable and thus reduce the overhead of
+    /// memory allocation.
+    pub fn reset(&mut self, rdr: R) {
+        self.r = rdr;
+        unsafe {
+            self.src.set_len(MAX_COMPRESS_BLOCK_SIZE);
+        }
+        unsafe {
+            self.dst.set_len(MAX_BLOCK_SIZE);
+        }
+        self.dsts = 0;
+        self.dste = 0;
+        self.read_stream_ident = false;
+    }
 }
 
 impl<R: io::Read> io::Read for FrameDecoder<R> {
@@ -130,12 +148,12 @@ impl<R: io::Read> io::Read for FrameDecoder<R> {
             }
             let len = len64 as usize;
             match ty {
-                Err(b) if 0x02 <= b && b <= 0x7F => {
+                Err(b) if (0x02..=0x7F).contains(&b) => {
                     // Spec says that chunk types 0x02-0x7F are reserved and
                     // conformant decoders must return an error.
                     fail!(Error::UnsupportedChunkType { byte: b });
                 }
-                Err(b) if 0x80 <= b && b <= 0xFD => {
+                Err(b) if (0x80..=0xFD).contains(&b) => {
                     // Spec says that chunk types 0x80-0xFD are reserved but
                     // skippable.
                     self.r.read_exact(&mut self.src[0..len])?;
@@ -331,6 +349,18 @@ impl<R: io::Read> FrameEncoder<R> {
         self.dsts += count;
         count
     }
+
+    /// Resets the internal state of this encoder and sets a new underlying
+    /// reader.
+    ///
+    /// This can make the encoder reusable and thus reduce the overhead of
+    /// memory allocation.
+    pub fn reset(&mut self, rdr: R) {
+        self.inner.reset(rdr);
+        unsafe { self.dst.set_len(MAX_READ_FRAME_ENCODER_BLOCK_SIZE) };
+        self.dsts = 0;
+        self.dste = 0;
+    }
 }
 
 impl<R: io::Read> io::Read for FrameEncoder<R> {
@@ -401,6 +431,20 @@ impl<R: io::Read> Inner<R> {
             true,
         )?;
         Ok(dst_write_start + frame_data.len())
+    }
+
+    /// Resets the internal state of this inner encoder and sets a new underlying
+    /// reader.
+    ///
+    /// This can make the inner encoder reusable and thus reduce the overhead of
+    /// memory allocation.
+    pub fn reset(&mut self, rdr: R) {
+        self.r = rdr;
+        self.enc.reset();
+        unsafe {
+            self.src.set_len(MAX_BLOCK_SIZE);
+        }
+        self.wrote_stream_ident = false;
     }
 }
 
