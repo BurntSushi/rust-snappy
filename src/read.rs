@@ -94,6 +94,11 @@ impl<R: io::Read> FrameDecoder<R> {
     pub fn get_mut(&mut self) -> &mut R {
         &mut self.r
     }
+
+    /// Gets the underlying reader of this decoder.
+    pub fn into_inner(self) -> R {
+        self.r
+    }
 }
 
 impl<R: io::Read> io::Read for FrameDecoder<R> {
