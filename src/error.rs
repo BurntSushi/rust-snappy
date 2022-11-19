@@ -29,6 +29,13 @@ impl<W> IntoInnerError<W> {
         &self.err
     }
 
+    /// Returns the error which caused the call to `into_inner` to fail.
+    ///
+    /// This error was returned when attempting to flush the internal buffer.
+    pub fn into_error(self) -> io::Error {
+        self.err
+    }
+
     /// Returns the underlying writer which generated the error.
     ///
     /// The returned value can be used for error recovery, such as
