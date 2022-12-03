@@ -112,6 +112,11 @@ impl<R: io::Read> FrameDecoder<R> {
         self.dste = 0;
         self.read_stream_ident = false;
     }
+
+    /// Gets the underlying reader of this decoder.
+    pub fn into_inner(self) -> R {
+        self.r
+    }
 }
 
 impl<R: io::Read> io::Read for FrameDecoder<R> {
