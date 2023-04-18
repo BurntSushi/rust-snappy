@@ -64,7 +64,7 @@ jobs:
         build: [linux, macos, windows]
         include:
         - build: linux
-          os: ubuntu-18.04
+          os: ubuntu-latest
           rust: nightly
           target: x86_64-unknown-linux-musl
         - build: macos
@@ -72,23 +72,18 @@ jobs:
           rust: nightly
           target: x86_64-apple-darwin
         - build: windows
-          os: windows-2019
+          os: windows-latest
           rust: nightly
           target: x86_64-pc-windows-msvc
 
     steps:
     - name: Checkout repository
-      uses: actions/checkout@v1
-      with:
-        fetch-depth: 1
+      uses: actions/checkout@v3
 
     - name: Install Rust
-      uses: actions-rs/toolchain@v1
+      uses: dtolnay/rust-toolchain@master
       with:
         toolchain: ${{ matrix.rust }}
-        profile: minimal
-        override: true
-        target: ${{ matrix.target }}
 
     - name: Set TARGET flags
       run: echo "TARGET_FLAGS=--target ${{ matrix.target }}" >> $GITHUB_ENV
