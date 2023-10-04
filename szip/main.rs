@@ -1,5 +1,5 @@
 use std::fs::{self, File};
-use std::io::{self, Read, Write};
+use std::io::{self, Read, stdout, Write};
 use std::path::{Path, PathBuf};
 
 use anyhow::bail;
@@ -51,6 +51,11 @@ fn app() -> clap::App<'static, 'static> {
             ),
         )
         .arg(
+            Arg::with_name("stdout").long("stdout").short("s").help(
+                "Write output to stdout without modifying existing files."
+            )
+        )
+        .arg(
             Arg::with_name("raw")
                 .long("raw")
                 .short("r")
@@ -72,7 +77,7 @@ fn main() -> anyhow::Result<()> {
         }
     } else {
         for p in &args.paths {
-            if let Err(err) = args.do_file(p) {
+            if let Err(err) = args.do_file(p, args.stdout) {
                 writeln!(
                     &mut std::io::stderr(),
                     "{}: {:?}",
@@ -92,6 +97,7 @@ struct Args {
     force: bool,
     keep: bool,
     raw: bool,
+    stdout: bool,
 }
 
 impl Args {
@@ -107,33 +113,41 @@ impl Args {
             force: parsed.is_present("force"),
             keep: parsed.is_present("keep"),
             raw: parsed.is_present("raw"),
+            stdout: parsed.is_present("stdout"),
         })
     }
 
-    fn do_file(&self, old_path: &Path) -> anyhow::Result<()> {
+    fn do_file(&self, old_path: &Path, to_stdout: bool) -> anyhow::Result<()> {
         let old_md = old_path.metadata()?;
         if old_md.is_dir() {
             bail!("is a directory");
         }
-
         let new_path = self.new_path(old_path)?;
-        if !self.force && new_path.exists() {
-            bail!("skipping, file already exists: {}", new_path.display());
-        }
+
+        let dst = io::BufWriter::new(if to_stdout {
+            Box::new(stdout().lock()) as Box<dyn Write>
+        } else {
+            if !self.force && new_path.exists() {
+                bail!("skipping, file already exists: {}", new_path.display());
+            }
+
+            Box::new(File::create(&new_path)?) as Box<dyn Write>
+        });
 
         let old_file = io::BufReader::new(File::open(old_path)?);
-        let new_file = io::BufWriter::new(File::create(&new_path)?);
         if self.decompress {
-            self.decompress(old_file, new_file)?;
+            self.decompress(old_file, dst)?;
         } else {
-            self.compress(old_file, new_file)?;
+            self.compress(old_file, dst)?;
         }
 
-        let last_access = FileTime::from_last_access_time(&old_md);
-        let last_mod = FileTime::from_last_modification_time(&old_md);
-        set_file_times(new_path, last_access, last_mod)?;
-        if !self.keep {
-            fs::remove_file(old_path)?;
+        if !to_stdout {
+            let last_access = FileTime::from_last_access_time(&old_md);
+            let last_mod = FileTime::from_last_modification_time(&old_md);
+            set_file_times(new_path, last_access, last_mod)?;
+            if !self.keep {
+                fs::remove_file(old_path)?;
+            }
         }
         Ok(())
     }
