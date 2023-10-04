@@ -1,5 +1,5 @@
 use std::fs::{self, File};
-use std::io::{self, Read, stdout, Write};
+use std::io::{self, stdout, Read, Write};
 use std::path::{Path, PathBuf};
 
 use anyhow::bail;
@@ -52,8 +52,8 @@ fn app() -> clap::App<'static, 'static> {
         )
         .arg(
             Arg::with_name("stdout").long("stdout").short("s").help(
-                "Write output to stdout without modifying existing files."
-            )
+                "Write output to stdout without modifying existing files.",
+            ),
         )
         .arg(
             Arg::with_name("raw")
