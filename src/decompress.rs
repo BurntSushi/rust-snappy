@@ -296,6 +296,11 @@ impl<'s, 'd> Decompress<'s, 'd> {
                 // to [0, 0]. But the last copy wrote to [9, 24], which is 24
                 // extra bytes in dst *beyond* the end of the copy, which is
                 // guaranteed by the conditional above.
+
+                // Save destination length here to avoid a reborrow UB violation
+                // under the Tree Borrows model.
+                let dest_len = self.dst.len();
+
                 let mut dstp = self.dst.as_mut_ptr().add(self.d);
                 let mut srcp = dstp.sub(offset);
                 loop {
@@ -305,7 +310,7 @@ impl<'s, 'd> Decompress<'s, 'd> {
                         break;
                     }
                     // srcp and dstp can overlap, so use ptr::copy.
-                    debug_assert!(self.d + 16 <= self.dst.len());
+                    debug_assert!(self.d + 16 <= dest_len);
                     ptr::copy(srcp, dstp, 16);
                     self.d += diff as usize;
                     dstp = dstp.add(diff);
