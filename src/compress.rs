@@ -167,6 +167,15 @@ impl Encoder {
         buf.truncate(n);
         Ok(buf)
     }
+
+    /// Resets the internal state of this encoder.
+    ///
+    /// This can make the encoder reusable and thus reduce the overhead of
+    /// memory allocation.
+    pub fn reset(&mut self) {
+        // small doesn't need to be reset, since it's reset when it's used.
+        self.big.clear();
+    }
 }
 
 struct Block<'s, 'd> {
