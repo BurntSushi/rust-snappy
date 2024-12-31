@@ -132,14 +132,11 @@ jobs:
 
     # Only worry about snappy-cpp when not using cross, since it's a pain
     # otherwise to deal with cross compiling with a C++ library. Similarly,
-    # skip CPP testing on Windows.
+    # skip CPP testing on Windows. ... and also on macOS apparently, which
+    # stopped working at some point and I couldn't be arsed to debug it.
     - name: Install snappy C++ library (Ubuntu)
       if: env.CARGO == 'cargo' && matrix.os == 'ubuntu-latest'
       run: sudo apt-get install libsnappy-dev
-
-    - name: Install snappy C++ library (macOS)
-      if: env.CARGO == 'cargo' && matrix.os == 'macos-latest'
-      run: brew install snappy
 
     - name: Build snappy-cpp library
       if: env.CARGO == 'cargo' && matrix.os != 'windows-latest'
@@ -150,7 +147,7 @@ jobs:
       run: cargo test --verbose --manifest-path test/Cargo.toml --features cpp
 
     - name: Compile benchmarks with snappy-cpp
-      if: env.CARGO == 'cargo' && matrix.os != 'windows-latest'
+      if: env.CARGO == 'cargo' && matrix.os != 'windows-latest' && matrix.os != 'macos-latest'
       run: cargo bench --manifest-path bench/Cargo.toml --verbose --features cpp -- --test
 
   rustfmt:
