@@ -87,37 +87,75 @@ macro_rules! testtrip {
                 assert_eq!(read_frame_press(d), write_frame_press(d));
             }
 
+            // Tests that snappy-cpp can decompress data compressed by Rust.
             #[test]
             #[cfg(feature = "cpp")]
-            fn cmpcpp() {
-                use super::{press, press_cpp};
+            fn cpp_decompresses_rust() {
+                use super::{press, depress_cpp};
 
                 let data = &$data[..];
-                let rust = press(data);
-                let cpp = press_cpp(data);
-                if rust == cpp {
+                let comp_rust = press(data);
+                let decomp_cpp = depress_cpp(&comp_rust);
+                if data == decomp_cpp {
                     return;
                 }
+
                 panic!(
-                    "\ncompression results are not equal!
+                    "\ndata compressed by snappy-cpp does not match data compressed by Rust
 original (len == {:?})
 ----------------------
 {:?}
 
-rust (len == {:?})
-------------------
+decompressed by cpp (len == {:?})
+---------------------------------
 {:?}
 
-cpp (len == {:?})
------------------
+compressed by Rust (len == {:?})
+--------------------------------
 {:?}
 ",
                     data.len(),
                     data,
-                    rust.len(),
-                    rust,
-                    cpp.len(),
-                    cpp
+                    decomp_cpp.len(),
+                    decomp_cpp,
+                    comp_rust.len(),
+                    comp_rust,
+                );
+            }
+
+            // Tests that Rust can decompress data compressed by snappy-cpp.
+            #[test]
+            #[cfg(feature = "cpp")]
+            fn rust_decompresses_cpp() {
+                use super::{depress, press_cpp};
+
+                let data = &$data[..];
+                let comp_cpp = press_cpp(data);
+                let decomp_rust = depress(&comp_cpp);
+                if data == decomp_rust {
+                    return;
+                }
+
+                panic!(
+                    "\ndata compressed by Rust does not match data compressed by snappy-cpp
+original (len == {:?})
+----------------------
+{:?}
+
+decompressed by Rust (len == {:?})
+----------------------------------
+{:?}
+
+compressed by snappy-cpp (len == {:?})
+--------------------------------------
+{:?}
+",
+                    data.len(),
+                    data,
+                    decomp_rust.len(),
+                    decomp_rust,
+                    comp_cpp.len(),
+                    comp_cpp,
                 );
             }
         }
@@ -508,9 +546,25 @@ fn test_short_input() {
 
 #[test]
 #[cfg(feature = "cpp")]
-fn qc_cmpcpp() {
+fn qc_cpp_decompresses_rust() {
     fn p(bytes: Vec<u8>) -> bool {
-        press(&bytes) == press_cpp(&bytes)
+        let comp_rust = press(&bytes);
+        let decomp_cpp = depress_cpp(&comp_rust);
+        bytes == decomp_cpp
+    }
+    QuickCheck::new()
+        .gen(StdGen::new(rand::thread_rng(), 10_000))
+        .tests(10_000)
+        .quickcheck(p as fn(_) -> _);
+}
+
+#[test]
+#[cfg(feature = "cpp")]
+fn qc_rust_decompresses_cpp() {
+    fn p(bytes: Vec<u8>) -> bool {
+        let comp_cpp = press_cpp(&bytes);
+        let decomp_rust = depress(&comp_cpp);
+        bytes == decomp_rust
     }
     QuickCheck::new()
         .gen(StdGen::new(rand::thread_rng(), 10_000))
@@ -577,6 +631,14 @@ fn press_cpp(bytes: &[u8]) -> Vec<u8> {
 
     let mut buf = vec![0; max_compress_len(bytes.len())];
     let n = cpp::compress(bytes, &mut buf).unwrap();
+    buf.truncate(n);
+    buf
+}
+
+#[cfg(feature = "cpp")]
+fn depress_cpp(bytes: &[u8]) -> Vec<u8> {
+    let mut buf = vec![0; decompress_len(bytes).unwrap()];
+    let n = cpp::decompress(bytes, &mut buf).unwrap();
     buf.truncate(n);
     buf
 }
