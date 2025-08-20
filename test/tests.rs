@@ -74,10 +74,16 @@ macro_rules! testtrip {
             }
 
             #[test]
-            fn roundtrip_frame() {
-                use super::{read_frame_depress, write_frame_press};
+            fn roundtrip_frame_reader() {
+                use super::{read_frame_depress_reader, write_frame_press};
                 let d = &$data[..];
-                assert_eq!(d, &*read_frame_depress(&write_frame_press(d)));
+                assert_eq!(d, &*read_frame_depress_reader(&write_frame_press(d)));
+            }
+            #[test]
+            fn roundtrip_frame_writer() {
+                use super::{read_frame_depress_writer, write_frame_press};
+                let d = &$data[..];
+                assert_eq!(d, &*read_frame_depress_writer(&write_frame_press(d)));
             }
 
             #[test]
@@ -518,13 +524,28 @@ fn qc_roundtrip() {
 }
 
 #[test]
-fn qc_roundtrip_stream() {
+fn qc_roundtrip_stream_reader() {
     fn p(bytes: Vec<u8>) -> TestResult {
         if bytes.is_empty() {
             return TestResult::discard();
         }
         TestResult::from_bool(
-            read_frame_depress(&write_frame_press(&bytes)) == bytes,
+            read_frame_depress_reader(&write_frame_press(&bytes)) == bytes,
+        )
+    }
+    QuickCheck::new()
+        .gen(StdGen::new(rand::thread_rng(), 10_000))
+        .tests(1_000)
+        .quickcheck(p as fn(_) -> _);
+}
+#[test]
+fn qc_roundtrip_stream_writer() {
+    fn p(bytes: Vec<u8>) -> TestResult {
+        if bytes.is_empty() {
+            return TestResult::discard();
+        }
+        TestResult::from_bool(
+            read_frame_depress_writer(&write_frame_press(&bytes)) == bytes,
         )
     }
     QuickCheck::new()
@@ -534,13 +555,25 @@ fn qc_roundtrip_stream() {
 }
 
 #[test]
-fn test_short_input() {
+fn test_short_input_reader() {
     // Regression test for https://github.com/BurntSushi/rust-snappy/issues/42
     use snap::read;
     use std::io::Read;
 
     let err =
         read::FrameDecoder::new(&b"123"[..]).read_to_end(&mut Vec::new());
+    assert_eq!(err.unwrap_err().kind(), std::io::ErrorKind::UnexpectedEof);
+}
+#[test]
+fn test_short_input_writer() {
+    // Regression test for https://github.com/BurntSushi/rust-snappy/issues/42
+    use snap::write;
+    use std::io::Write;
+
+    let buf = Vec::new();
+
+    let err = write::FrameDecoder::new(buf).write_all(&b"123"[..]);
+
     assert_eq!(err.unwrap_err().kind(), std::io::ErrorKind::UnexpectedEof);
 }
 
@@ -607,13 +640,22 @@ fn write_frame_press(bytes: &[u8]) -> Vec<u8> {
     wtr.into_inner().unwrap()
 }
 
-fn read_frame_depress(bytes: &[u8]) -> Vec<u8> {
+fn read_frame_depress_reader(bytes: &[u8]) -> Vec<u8> {
     use snap::read;
     use std::io::Read;
 
     let mut buf = vec![];
     read::FrameDecoder::new(bytes).read_to_end(&mut buf).unwrap();
     buf
+}
+fn read_frame_depress_writer(bytes: &[u8]) -> Vec<u8> {
+    use snap::write;
+    use std::io::Write;
+
+    let buf = vec![];
+    let mut writer = write::FrameDecoder::new(buf);
+    writer.write_all(bytes).unwrap();
+    writer.into_inner().unwrap()
 }
 
 fn read_frame_press(bytes: &[u8]) -> Vec<u8> {
