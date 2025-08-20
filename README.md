@@ -1,5 +1,9 @@
 snap
 ====
+[![Crates.io](https://img.shields.io/crates/v/snap.svg)](https://crates.io/crates/snap)
+[![Docs.rs](https://docs.rs/snap/badge.svg)](https://docs.rs/snap/)
+[![Build status](https://github.com/BurntSushi/rust-snappy/actions/workflows/ci.yml/badge.svg)](https://github.com/BurntSushi/rust-snappy/actions/workflows/ci.yml)
+
 A pure Rust implementation of the
 [Snappy compression algorithm](https://google.github.io/snappy/).
 Includes streaming compression and decompression using the Snappy frame format.
@@ -8,11 +12,7 @@ This implementation is ported from both the
 and the
 [Go implementation](https://github.com/golang/snappy).
 
-[![Build status](https://github.com/BurntSushi/rust-snappy/workflows/ci/badge.svg)](https://github.com/BurntSushi/rust-snappy/actions)
-[![](https://meritbadge.herokuapp.com/snap)](https://crates.io/crates/snap)
-
 Licensed under the BSD 3-Clause.
-
 
 ### Documentation
 
@@ -74,8 +74,8 @@ fn main() {
 `szip` is a tool with similar behavior as `gzip`, except it uses Snappy
 compression. It can be installed with Cargo:
 
-```
-$ cargo install szip
+```sh
+cargo install szip
 ```
 
 To compress a file, run `szip file`. To decompress a file, run
@@ -95,14 +95,14 @@ library in your `LD_LIBRARY_PATH` (or equivalent).
 
 To run tests, you'll need to explicitly run the `test` crate:
 
-```
-$ cargo test --manifest-path test/Cargo.toml
+```sh
+cargo test --manifest-path test/Cargo.toml
 ```
 
 To test that this library matches the output of the reference C++ library, use:
 
-```
-$ cargo test --manifest-path test/Cargo.toml --features cpp
+```sh
+cargo test --manifest-path test/Cargo.toml --features cpp
 ```
 
 Tests are in a separate crate because of the dependency on the C++ reference
@@ -197,24 +197,24 @@ Benchmark_ZFlat11           4070            293952 ns/op         627.04 MB/s
 To run benchmarks, including the reference C++ implementation, do the
 following:
 
-```
-$ cd bench
-$ cargo bench --features cpp -- --save-baseline snappy
+```sh
+cd bench
+cargo bench --features cpp -- --save-baseline snappy
 ```
 
 To compare them, as shown above, install
 [`critcmp`](https://github.com/BurntSushi/critcmp)
 and run (assuming you saved the baseline above under the name `snappy`):
 
-```
-$ critcmp snappy -g '.*?/(.*$)'
+```sh
+critcmp snappy -g '.*?/(.*$)'
 ```
 
 Finally, the Go benchmarks were run with the following command on commit
 `ff6b7dc8`:
 
-```
-$ go test -cpu 1 -bench Flat -download
+```sh
+go test -cpu 1 -bench Flat -download
 ```
 
 
