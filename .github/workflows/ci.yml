@@ -122,12 +122,15 @@ jobs:
       run: ${{ env.CARGO }} doc --verbose ${{ env.TARGET }}
 
     - name: Run tests for snap
+      if: matrix.build != 'pinned'
       run: ${{ env.CARGO }} test --verbose --all ${{ env.TARGET }}
 
     - name: Build szip CLI tool
+      if: matrix.build != 'pinned'
       run: ${{ env.CARGO }} build --verbose --manifest-path szip/Cargo.toml ${{ env.TARGET }}
 
     - name: Compile benchmarks
+      if: matrix.build != 'pinned'
       run: ${{ env.CARGO }} bench --manifest-path bench/Cargo.toml --verbose ${{ env.TARGET }} -- --test
 
     # Only worry about snappy-cpp when not using cross, since it's a pain
@@ -143,11 +146,11 @@ jobs:
       run: cargo build --verbose --manifest-path snappy-cpp/Cargo.toml
 
     - name: Run tests with snappy-cpp
-      if: env.CARGO == 'cargo' && matrix.os != 'windows-latest' && matrix.os != 'macos-latest'
+      if: matrix.build != 'pinned' && env.CARGO == 'cargo' && matrix.os != 'windows-latest' && matrix.os != 'macos-latest'
       run: cargo test --verbose --manifest-path test/Cargo.toml --features cpp
 
     - name: Compile benchmarks with snappy-cpp
-      if: env.CARGO == 'cargo' && matrix.os != 'windows-latest' && matrix.os != 'macos-latest'
+      if: matrix.build != 'pinned' && env.CARGO == 'cargo' && matrix.os != 'windows-latest' && matrix.os != 'macos-latest'
       run: cargo bench --manifest-path bench/Cargo.toml --verbose --features cpp -- --test
 
   rustfmt:
