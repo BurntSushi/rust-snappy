@@ -534,6 +534,30 @@ fn qc_roundtrip_stream() {
 }
 
 #[test]
+fn qc_roundtrip_stream_reuse() {
+    fn p(bytes: Vec<u8>) -> TestResult {
+        if bytes.is_empty() {
+            return TestResult::discard();
+        }
+        use snap::read;
+        use std::io::Read;
+
+        let compressed = write_frame_press(&bytes);
+        let mut decoder = read::FrameDecoder::new(&compressed[..]);
+        let mut buf = vec![];
+        decoder.read_to_end(&mut buf).unwrap();
+        buf.clear();
+        decoder.reset(&compressed);
+        decoder.read_to_end(&mut buf).unwrap();
+        TestResult::from_bool(buf == bytes)
+    }
+    QuickCheck::new()
+        .gen(StdGen::new(rand::thread_rng(), 10_000))
+        .tests(1_000)
+        .quickcheck(p as fn(_) -> _);
+}
+
+#[test]
 fn test_short_input() {
     // Regression test for https://github.com/BurntSushi/rust-snappy/issues/42
     use snap::read;
