@@ -1,12 +1,6 @@
 use std::convert::TryInto;
 use std::io;
 
-/// Read a u16 in little endian format from the beginning of the given slice.
-/// This panics if the slice has length less than 2.
-pub fn read_u16_le(slice: &[u8]) -> u16 {
-    u16::from_le_bytes(slice[..2].try_into().unwrap())
-}
-
 /// Read a u24 (returned as a u32 with the most significant 8 bits always set
 /// to 0) in little endian format from the beginning of the given slice. This
 /// panics if the slice has length less than 3.
