@@ -384,12 +384,11 @@ testerrored!(
     &b"\x02\xechi"[..],
     Error::Literal { len: 60, src_len: 2, dst_len: 2 }
 );
-// A literal whose length is too big, requires 1 extra byte to be read, and
-// src is too short to read that byte.
+// A literal whose extended length byte declares more data than is available.
 testerrored!(
     err_lit_big2a,
     &b"\x02\xf0hi"[..],
-    Error::Literal { len: 4, src_len: 2, dst_len: 2 }
+    Error::Literal { len: 105, src_len: 1, dst_len: 2 }
 );
 // A literal whose length is too big, requires 1 extra byte to be read,
 // src is too short to read the full literal.

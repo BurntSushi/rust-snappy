@@ -187,20 +187,27 @@ impl<'s, 'd> Decompress<'s, 'd> {
         // When the length is bigger than 60, it indicates that we need to read
         // an additional 1-4 bytes to get the real length of the literal.
         if len >= 61 {
-            // If there aren't at least 4 bytes left to read then we know this
-            // is corrupt because the literal must have length >=61.
-            if self.s as u64 + 4 > self.src.len() as u64 {
+            let byte_count = len as usize - 60;
+            // Only require the number of length bytes selected by the tag.
+            if self.src.len() - self.s < byte_count {
                 return Err(Error::Literal {
-                    len: 4,
+                    len: byte_count as u64,
                     src_len: (self.src.len() - self.s) as u64,
                     dst_len: (self.dst.len() - self.d) as u64,
                 });
             }
-            // Since we know there are 4 bytes left to read, read a 32 bit LE
-            // integer and mask away the bits we don't need.
-            let byte_count = len as usize - 60;
-            len = bytes::read_u32_le(&self.src[self.s..]) as u64;
-            len = (len & (WORD_MASK[byte_count] as u64)) + 1;
+            // Keep the fast 32-bit load when it is in bounds. Near the end of
+            // the input, read only the selected 1-4 little-endian bytes.
+            if self.src.len() - self.s >= 4 {
+                len = bytes::read_u32_le(&self.src[self.s..]) as u64;
+                len = (len & (WORD_MASK[byte_count] as u64)) + 1;
+            } else {
+                len = 0;
+                for i in 0..byte_count {
+                    len |= (self.src[self.s + i] as u64) << (8 * i);
+                }
+                len += 1;
+            }
             self.s += byte_count;
         }
         // If there's not enough buffer left to load or store this literal,
@@ -361,7 +368,9 @@ impl Header {
     #[inline(always)]
     fn read(input: &[u8]) -> Result<Header> {
         let (decompress_len, header_len) = bytes::read_varu64(input);
-        if header_len == 0 {
+        // The uncompressed length is a uint32 varint, which uses at most 5
+        // bytes in the reference implementation.
+        if header_len == 0 || header_len > 5 {
             return Err(Error::Header);
         }
         if decompress_len > MAX_INPUT_SIZE {
