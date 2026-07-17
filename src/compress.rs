@@ -1,6 +1,7 @@
-use std::fmt;
+use std::mem::MaybeUninit;
 use std::ops::{Deref, DerefMut};
 use std::ptr;
+use std::{fmt, slice};
 
 use crate::bytes;
 use crate::error::{Error, Result};
@@ -98,8 +99,46 @@ impl Encoder {
     /// * `output` has length less than `max_compress_len(input.len())`.
     pub fn compress(
         &mut self,
-        mut input: &[u8],
+        input: &[u8],
         output: &mut [u8],
+    ) -> Result<usize> {
+        // SAFETY: `output` is guaranteed to be valid for reads and writes of
+        // `output.len()` bytes. Also compress_uninit does not write any
+        // uninitialised data into the buffer
+        //   (i.e. via array[0] = MaybeUninit::new())
+        let output: &mut [MaybeUninit<u8>] = unsafe {
+            slice::from_raw_parts_mut(
+                output.as_mut_ptr() as *mut MaybeUninit<u8>,
+                output.len(),
+            )
+        };
+        self.compress_uninit(input, output)
+    }
+
+    /// Compresses all bytes in `input` into `output`.
+    ///
+    /// `input` can be any arbitrary sequence of bytes.
+    ///
+    /// `output` must be large enough to hold the maximum possible compressed
+    /// size of `input`, which can be computed using `max_compress_len`.
+    ///
+    /// On success, this returns the number of bytes written to `output`.
+    ///
+    /// The data written to `output` is guaranteed to be initialized to the
+    /// number of bytes written returned by the method. Data outside that
+    /// bound is not initialized and reading from it is UB. It's the callee's
+    /// responsibility to finalize the state of `output`.
+    ///
+    /// # Errors
+    ///
+    /// This method returns an error in the following circumstances:
+    ///
+    /// * The total number of bytes to compress exceeds `2^32 - 1`.
+    /// * `output` has length less than `max_compress_len(input.len())`.
+    pub fn compress_uninit(
+        &mut self,
+        mut input: &[u8],
+        output: &mut [MaybeUninit<u8>],
     ) -> Result<usize> {
         match max_compress_len(input.len()) {
             0 => {
@@ -120,7 +159,7 @@ impl Encoder {
         if input.is_empty() {
             // Encodes a varint of 0, denoting the total size of uncompressed
             // bytes.
-            output[0] = 0;
+            output[0].write(0);
             return Ok(1);
         }
         // Write the Snappy header, which is just the total number of
@@ -162,9 +201,12 @@ impl Encoder {
     /// This method returns an error under the same circumstances that
     /// `compress` does.
     pub fn compress_vec(&mut self, input: &[u8]) -> Result<Vec<u8>> {
-        let mut buf = vec![0; max_compress_len(input.len())];
-        let n = self.compress(input, &mut buf)?;
-        buf.truncate(n);
+        let mut buf = Vec::with_capacity(max_compress_len(input.len()));
+        let n = self.compress_uninit(input, buf.spare_capacity_mut())?;
+
+        // SAFETY: compress_uninit guarantees all the data up to `n` is
+        // initialized
+        unsafe { buf.set_len(n) };
         Ok(buf)
     }
 }
@@ -173,22 +215,15 @@ struct Block<'s, 'd> {
     src: &'s [u8],
     s: usize,
     s_limit: usize,
-    dst: &'d mut [u8],
+    dst: &'d mut [MaybeUninit<u8>],
     d: usize,
     next_emit: usize,
 }
 
 impl<'s, 'd> Block<'s, 'd> {
     #[inline(always)]
-    fn new(src: &'s [u8], dst: &'d mut [u8], d: usize) -> Block<'s, 'd> {
-        Block {
-            src: src,
-            s: 0,
-            s_limit: src.len(),
-            dst: dst,
-            d: d,
-            next_emit: 0,
-        }
+    fn new(src: &'s [u8], dst: &'d mut [MaybeUninit<u8>], d: usize) -> Self {
+        Self { src, s: 0, s_limit: src.len(), dst, d, next_emit: 0 }
     }
 
     #[inline(always)]
@@ -346,10 +381,11 @@ impl<'s, 'd> Block<'s, 'd> {
         }
         // If we can squeeze the last copy into a copy 1 operation, do it.
         if len <= 11 && offset <= 2047 {
-            self.dst[self.d] = (((offset >> 8) as u8) << 5)
+            let tag = (((offset >> 8) as u8) << 5)
                 | (((len - 4) as u8) << 2)
                 | (Tag::Copy1 as u8);
-            self.dst[self.d + 1] = offset as u8;
+            self.dst[self.d].write(tag);
+            self.dst[self.d + 1].write(offset as u8);
             self.d += 2;
         } else {
             self.emit_copy2(offset, len);
@@ -363,7 +399,7 @@ impl<'s, 'd> Block<'s, 'd> {
     fn emit_copy2(&mut self, offset: usize, len: usize) {
         debug_assert!(1 <= offset && offset <= 65535);
         debug_assert!(1 <= len && len <= 64);
-        self.dst[self.d] = (((len - 1) as u8) << 2) | (Tag::Copy2 as u8);
+        self.dst[self.d].write((((len - 1) as u8) << 2) | (Tag::Copy2 as u8));
         bytes::write_u16_le(offset as u16, &mut self.dst[self.d + 1..]);
         self.d += 3;
     }
@@ -435,7 +471,7 @@ impl<'s, 'd> Block<'s, 'd> {
         let len = lit_end - lit_start;
         let n = len.checked_sub(1).unwrap();
         if n <= 59 {
-            self.dst[self.d] = ((n as u8) << 2) | (Tag::Literal as u8);
+            self.dst[self.d].write(((n as u8) << 2) | (Tag::Literal as u8));
             self.d += 1;
             if len <= 16 && lit_start + 16 <= self.src.len() {
                 // SAFETY: lit_start is equivalent to self.next_emit, which is
@@ -448,16 +484,16 @@ impl<'s, 'd> Block<'s, 'd> {
                 // an extra 32 bytes, which exceeds the 16 byte copy here.
                 let srcp = self.src.as_ptr().add(lit_start);
                 let dstp = self.dst.as_mut_ptr().add(self.d);
-                ptr::copy_nonoverlapping(srcp, dstp, 16);
+                ptr::copy_nonoverlapping(srcp, dstp as *mut u8, 16);
                 self.d += len;
                 return;
             }
         } else if n < 256 {
-            self.dst[self.d] = (60 << 2) | (Tag::Literal as u8);
-            self.dst[self.d + 1] = n as u8;
+            self.dst[self.d].write((60 << 2) | (Tag::Literal as u8));
+            self.dst[self.d + 1].write(n as u8);
             self.d += 2;
         } else {
-            self.dst[self.d] = (61 << 2) | (Tag::Literal as u8);
+            self.dst[self.d].write((61 << 2) | (Tag::Literal as u8));
             bytes::write_u16_le(n as u16, &mut self.dst[self.d + 1..]);
             self.d += 3;
         }
@@ -469,7 +505,7 @@ impl<'s, 'd> Block<'s, 'd> {
         // must be guaranteed by the caller and is why this method is unsafe.
         let srcp = self.src.as_ptr().add(lit_start);
         let dstp = self.dst.as_mut_ptr().add(self.d);
-        ptr::copy_nonoverlapping(srcp, dstp, len);
+        ptr::copy_nonoverlapping(srcp, dstp as *mut u8, len);
         self.d += len;
     }
 }

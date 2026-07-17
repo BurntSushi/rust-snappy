@@ -1,5 +1,6 @@
 use std::convert::TryInto;
 use std::io;
+use std::mem::MaybeUninit;
 
 /// Read a u16 in little endian format from the beginning of the given slice.
 /// This panics if the slice has length less than 2.
@@ -28,13 +29,11 @@ pub fn io_read_u32_le<R: io::Read>(mut rdr: R) -> io::Result<u32> {
     Ok(u32::from_le_bytes(buf))
 }
 
-/// Write a u16 in little endian format to the beginning of the given slice.
-/// This panics if the slice has length less than 2.
-pub fn write_u16_le(n: u16, slice: &mut [u8]) {
+pub fn write_u16_le(n: u16, slice: &mut [MaybeUninit<u8>]) {
     assert!(slice.len() >= 2);
     let bytes = n.to_le_bytes();
-    slice[0] = bytes[0];
-    slice[1] = bytes[1];
+    slice[0].write(bytes[0]);
+    slice[1].write(bytes[1]);
 }
 
 /// Write a u24 (given as a u32 where the most significant 8 bits are ignored)
@@ -58,14 +57,14 @@ pub fn write_u32_le(n: u32, slice: &mut [u8]) {
 }
 
 /// https://developers.google.com/protocol-buffers/docs/encoding#varints
-pub fn write_varu64(data: &mut [u8], mut n: u64) -> usize {
+pub fn write_varu64(data: &mut [MaybeUninit<u8>], mut n: u64) -> usize {
     let mut i = 0;
     while n >= 0b1000_0000 {
-        data[i] = (n as u8) | 0b1000_0000;
+        data[i].write((n as u8) | 0b1000_0000);
         n >>= 7;
         i += 1;
     }
-    data[i] = n as u8;
+    data[i].write(n as u8);
     i + 1
 }
 
