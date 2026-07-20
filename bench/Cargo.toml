@@ -19,6 +19,7 @@ path = "src/bench.rs"
 
 [features]
 cpp = ["snappy-cpp"]
+reuse = []
 
 [dependencies]
 criterion = "0.3.1"
