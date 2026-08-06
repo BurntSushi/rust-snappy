@@ -1,7 +1,8 @@
 use std::time::Duration;
 
 use criterion::{
-    criterion_group, criterion_main, Bencher, Benchmark, Criterion, Throughput,
+    criterion_group, criterion_main, Bencher, BenchmarkId, Criterion,
+    Throughput,
 };
 
 const CORPUS_HTML: &'static [u8] = include_bytes!("../../data/html");
@@ -159,13 +160,16 @@ fn define(
     corpus: &[u8],
     bench: impl FnMut(&mut Bencher) + 'static,
 ) {
-    let tput = Throughput::Bytes(corpus.len() as u64);
-    let benchmark = Benchmark::new(bench_name, bench)
-        .throughput(tput)
+    let mut group = c.benchmark_group(group_name);
+
+    group
+        .throughput(Throughput::Bytes(corpus.len() as u64))
         .sample_size(50)
         .warm_up_time(Duration::from_millis(500))
-        .measurement_time(Duration::from_secs(3));
-    c.bench(group_name, benchmark);
+        .measurement_time(Duration::from_secs(3))
+        .bench_function(BenchmarkId::new(bench_name, corpus.len()), bench);
+
+    group.finish();
 }
 
 criterion_group!(g, all);
